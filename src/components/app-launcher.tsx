@@ -302,15 +302,14 @@ export default function AppLauncher() {
                 <DialogTitle>{isConnected ? 'Connection Settings' : 'Connect to your PC'}</DialogTitle>
               </DialogHeader>
               <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-4 items-center">
-                  <Label htmlFor="server-url" className="col-span-1 text-right pr-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="server-url">
                     Server URL
                   </Label>
                   <Input
                     id="server-url"
                     value={tempServerUrl}
                     onChange={(e) => setTempServerUrl(e.target.value)}
-                    className="col-span-3"
                     placeholder="http://<YOUR_PC_IP>:8000"
                   />
                 </div>
@@ -364,7 +363,7 @@ export default function AppLauncher() {
                     <Settings/> Not Connected to Your PC
                 </CardTitle>
             </CardHeader>
-            <CardContent className="p-6 pt-0">
+            <CardContent>
                 <p className="text-destructive-foreground/80">
                     To launch apps, click the "Connect" button and enter your computer's server URL. You can use your home Wi-Fi or your phone's hotspot.
                 </p>
