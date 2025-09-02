@@ -9,7 +9,6 @@
  */
 "use server";
 
-import { filterApps } from "@/ai/flows/smart-app-filtering";
 import { z } from "zod";
 
 // Define a Zod schema for validating the data needed to launch an app.
@@ -72,36 +71,6 @@ export async function launchApp(
        return { success: false, message: `Could not connect to your PC. Is the server running at ${localServerUrl}?` };
     }
     return { success: false, message: `Failed to launch ${appName}. Check if the local server is running.` };
-  }
-}
-
-/**
- * Server Action: filterAppsAction
- * This function is called when the user types in the search bar.
- * It takes the search query and the list of all app names and calls the Genkit AI flow.
- * @param query - The user's natural language search query.
- * @param apps - An array of all available application names.
- * @returns A promise that resolves to an array of app names that match the query.
- */
-export async function filterAppsAction(
-  query: string,
-  apps: string[]
-): Promise<string[]> {
-  // If the query is empty, return all apps immediately without calling the AI.
-  if (!query) {
-    return apps;
-  }
-  try {
-    // Call the AI flow to get the filtered list.
-    const result = await filterApps({ query, apps });
-    return result.filteredApps;
-  } catch (error) {
-    // If the AI call fails, log the error and fall back to a simple text search.
-    // This makes the app more robust.
-    console.error("AI filtering error:", error);
-    return apps.filter((app) =>
-      app.toLowerCase().includes(query.toLowerCase())
-    );
   }
 }
 

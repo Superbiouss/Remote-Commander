@@ -17,7 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 // App data and icon mapping.
 import { ICONS, getIcon, type App as AppType } from '@/lib/mock-data';
 // Server actions imported from the actions file.
-import { filterAppsAction, launchApp, FormState, getAppsFromPC, testConnection } from '@/app/actions';
+import { launchApp, FormState, getAppsFromPC, testConnection } from '@/app/actions';
 // UI components from the shadcn/ui library.
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -34,29 +34,6 @@ import {
   DialogClose
 } from "@/components/ui/dialog";
 import { Label } from './ui/label';
-
-/**
- * A custom hook to debounce a value. This is used to prevent the AI filtering
- * from running on every keystroke, saving resources.
- * @param value The value to debounce.
- * @param delay The debounce delay in milliseconds.
- * @returns The debounced value.
- */
-function useDebounce<T>(value: T, delay: number): T {
-  const [debouncedValue, setDebouncedValue] = useState<T>(value);
-
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedValue(value);
-    }, delay);
-
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [value, delay]);
-
-  return debouncedValue;
-}
 
 /**
  * AppCard Component
@@ -154,14 +131,10 @@ function LaunchButton({ icon: Icon, appName }: { icon: React.ElementType, appNam
 export default function AppLauncher() {
   // State for the full list of apps fetched from the PC.
   const [apps, setApps] = useState<AppType[]>([]);
-  // State for the apps filtered by the AI search.
-  const [filteredApps, setFilteredApps] = useState<AppType[]>([]);
   // State to show loading skeletons while apps are being fetched.
   const [isLoading, setIsLoading] = useState(true);
   // State for the user's search query.
   const [searchQuery, setSearchQuery] = useState('');
-  // State to show a loading spinner in the search bar while AI is filtering.
-  const [isFiltering, setIsFiltering] = useState(false);
   // State for the local PC server URL. This is the source of truth for the connection.
   const [localServerUrl, setLocalServerUrl] = useState('');
   // Temporary state for the URL input field in the settings dialog.
@@ -171,12 +144,7 @@ export default function AppLauncher() {
   // State for the list of pinned app names, stored in localStorage.
   const [pinnedApps, setPinnedApps] = useState<string[]>([]);
   
-  // Debounced search query to avoid excessive AI calls.
-  const debouncedSearchQuery = useDebounce(searchQuery, 300);
   const { toast } = useToast();
-
-  // A memoized list of app names, used for the AI filtering action.
-  const appNames = useMemo(() => apps.map(app => app.name), [apps]);
 
   // useEffect to load saved settings from localStorage on initial component mount.
   useEffect(() => {
@@ -227,8 +195,13 @@ export default function AppLauncher() {
 
   // A memoized list of apps that are sorted (pinned apps first) and filtered.
   const sortedAndFilteredApps = useMemo(() => {
-    // Start with a copy of the apps array.
-    const sortedApps = [...apps].sort((a, b) => {
+    // Start with a copy of the apps array, filtered by the search query.
+    const filtered = searchQuery
+        ? apps.filter(app => app.name.toLowerCase().includes(searchQuery.toLowerCase()))
+        : apps;
+        
+    // Sort the filtered apps.
+    return filtered.sort((a, b) => {
       const aIsPinned = pinnedApps.includes(a.name);
       const bIsPinned = pinnedApps.includes(b.name);
 
@@ -241,36 +214,8 @@ export default function AppLauncher() {
       // If neither is pinned, sort alphabetically.
       return a.name.localeCompare(b.name);
     });
-
-    // If there's no search query, return the sorted list.
-    if (!searchQuery) {
-        return sortedApps;
-    }
-    // Otherwise, return the list filtered by the AI.
-    return filteredApps;
-  }, [apps, pinnedApps, searchQuery, filteredApps]);
+  }, [apps, pinnedApps, searchQuery]);
   
-
-  // Callback to handle the AI filtering.
-  const handleFilter = useCallback(async (query: string) => {
-    if (!query) {
-      // If query is cleared, reset the filtered list to all apps.
-      setFilteredApps(apps);
-      return;
-    }
-    setIsFiltering(true);
-    const filteredNames = await filterAppsAction(query, appNames);
-    // Create the new list of filtered app objects based on the names returned by the AI.
-    const newFilteredApps = apps.filter(app => filteredNames.includes(app.name));
-    setFilteredApps(newFilteredApps);
-    setIsFiltering(false);
-  }, [appNames, apps]);
-
-  // useEffect to trigger the filtering when the debounced search query changes.
-  useEffect(() => {
-    handleFilter(debouncedSearchQuery);
-  }, [debouncedSearchQuery, handleFilter]);
-
 
   // Handler for the "Save" button in the settings dialog.
   const handleSaveSettings = () => {
@@ -420,14 +365,11 @@ export default function AppLauncher() {
         <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
         <Input
           type="search"
-          placeholder="Use AI to filter apps (e.g., 'design tools' or 'coding')..."
+          placeholder="Search for an app..."
           className="w-full rounded-full bg-background/50 py-6 pl-12 pr-12 text-base shadow-lg"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
-        {isFiltering && (
-            <Loader2 className="absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 animate-spin text-muted-foreground" />
-        )}
       </div>
 
       {/* Main Content Area (App Grid or Loading/Empty State) */}
