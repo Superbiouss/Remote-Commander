@@ -311,6 +311,7 @@ export default function AppLauncher() {
                     value={tempServerUrl}
                     onChange={(e) => setTempServerUrl(e.target.value)}
                     placeholder="http://<YOUR_PC_IP>:8000"
+                    className="w-full"
                   />
                 </div>
                  <Card className="col-span-4 bg-muted/50">
