@@ -1,12 +1,24 @@
+/**
+ * @fileoverview This is the main client component for the Remote Commander application.
+ * It manages all the state, user interactions, and renders the entire UI.
+ * The 'use client' directive is essential as this component uses React hooks like useState, useEffect, etc.
+ */
 "use client";
 
+// React and Next.js hooks for state management, effects, and server action handling.
 import { useState, useEffect, useCallback, useMemo, useActionState } from 'react';
 import { useFormStatus } from 'react-dom';
+// Framer Motion for animations.
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Loader2, Settings, Save, Power, Plug, CheckCircle2, Pin, PinOff, GripVertical, WifiOff } from 'lucide-react';
+// Icons from the lucide-react library.
+import { Search, Loader2, Settings, Save, Power, Plug, CheckCircle2, Pin, PinOff, GripVertical, WifiOff, TestTube2 } from 'lucide-react';
+// Custom hook for showing toast notifications.
 import { useToast } from "@/hooks/use-toast";
+// App data and icon mapping.
 import { ICONS, getIcon, type App as AppType } from '@/lib/mock-data';
-import { filterAppsAction, launchApp, FormState, getAppsFromPC } from '@/app/actions';
+// Server actions imported from the actions file.
+import { filterAppsAction, launchApp, FormState, getAppsFromPC, testConnection } from '@/app/actions';
+// UI components from the shadcn/ui library.
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -23,6 +35,13 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from './ui/label';
 
+/**
+ * A custom hook to debounce a value. This is used to prevent the AI filtering
+ * from running on every keystroke, saving resources.
+ * @param value The value to debounce.
+ * @param delay The debounce delay in milliseconds.
+ * @returns The debounced value.
+ */
 function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
 
@@ -39,12 +58,22 @@ function useDebounce<T>(value: T, delay: number): T {
   return debouncedValue;
 }
 
+/**
+ * AppCard Component
+ * Renders a single application card with its icon and launch functionality.
+ * @param app - The application data.
+ * @param localServerUrl - The URL of the user's PC server.
+ * @param isPinned - A boolean indicating if the app is currently pinned.
+ * @param onPinToggle - A callback function to handle pinning/unpinning.
+ */
 const AppCard = ({ app, localServerUrl, isPinned, onPinToggle }: { app: AppType; localServerUrl: string; isPinned: boolean; onPinToggle: (appName: string) => void; }) => {
   const Icon = getIcon(app.icon);
+  // useActionState is a React hook for managing form submissions with server actions.
   const initialState: FormState = { success: false, message: "" };
   const [state, formAction] = useActionState(launchApp, initialState);
   const { toast } = useToast();
 
+  // useEffect to show a toast notification when the launch action completes.
   useEffect(() => {
     if (state.message) {
       toast({
@@ -73,6 +102,7 @@ const AppCard = ({ app, localServerUrl, isPinned, onPinToggle }: { app: AppType;
             <LaunchButton icon={Icon} appName={app.name}/>
         </form>
       </Card>
+      {/* Pin/Unpin button */}
       <Button
         size="icon"
         variant="ghost"
@@ -81,11 +111,17 @@ const AppCard = ({ app, localServerUrl, isPinned, onPinToggle }: { app: AppType;
       >
         {isPinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
       </Button>
+      {/* Visual indicator for pinned apps */}
       {isPinned && <GripVertical className="absolute top-1 left-1 h-5 w-5 text-muted-foreground/50" />}
     </motion.div>
   );
 };
 
+/**
+ * LaunchButton Component
+ * A dedicated component for the button inside the AppCard.
+ * It uses the useFormStatus hook to show a loading spinner while the form (launch action) is pending.
+ */
 function LaunchButton({ icon: Icon, appName }: { icon: React.ElementType, appName: string }) {
     const { pending } = useFormStatus();
 
@@ -111,29 +147,45 @@ function LaunchButton({ icon: Icon, appName }: { icon: React.ElementType, appNam
     )
 }
 
-
+/**
+ * AppLauncher Component
+ * This is the main default export of the file, containing the entire page logic.
+ */
 export default function AppLauncher() {
+  // State for the full list of apps fetched from the PC.
   const [apps, setApps] = useState<AppType[]>([]);
+  // State for the apps filtered by the AI search.
   const [filteredApps, setFilteredApps] = useState<AppType[]>([]);
+  // State to show loading skeletons while apps are being fetched.
   const [isLoading, setIsLoading] = useState(true);
+  // State for the user's search query.
   const [searchQuery, setSearchQuery] = useState('');
+  // State to show a loading spinner in the search bar while AI is filtering.
   const [isFiltering, setIsFiltering] = useState(false);
+  // State for the local PC server URL. This is the source of truth for the connection.
   const [localServerUrl, setLocalServerUrl] = useState('');
+  // Temporary state for the URL input field in the settings dialog.
   const [tempServerUrl, setTempServerUrl] = useState('');
+  // State to control the visibility of the settings dialog.
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  // State for the list of pinned app names, stored in localStorage.
   const [pinnedApps, setPinnedApps] = useState<string[]>([]);
   
+  // Debounced search query to avoid excessive AI calls.
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
   const { toast } = useToast();
 
+  // A memoized list of app names, used for the AI filtering action.
   const appNames = useMemo(() => apps.map(app => app.name), [apps]);
 
+  // useEffect to load saved settings from localStorage on initial component mount.
   useEffect(() => {
     const storedUrl = localStorage.getItem('localServerUrl');
     if (storedUrl) {
       setLocalServerUrl(storedUrl);
       setTempServerUrl(storedUrl);
     } else {
+        // If no URL is stored, automatically open the settings dialog.
         setIsSettingsOpen(true);
     }
     const storedPinnedApps = localStorage.getItem('pinnedApps');
@@ -142,18 +194,20 @@ export default function AppLauncher() {
     }
   }, []);
 
+  // Callback to fetch the list of apps from the PC server.
   const fetchAndSetApps = useCallback(async (url: string) => {
     setIsLoading(true);
     const appNames = await getAppsFromPC(url);
     if (appNames.length > 0) {
       const allIcons = Object.keys(ICONS);
+      // Map the fetched app names to AppType objects, assigning an icon.
       const fetchedApps: AppType[] = appNames.map((name, index) => ({
         name,
-        // Assign icons based on availability or fallback
+        // Tries to find a matching icon name, otherwise cycles through available icons.
         icon: allIcons.find(iconName => name.toLowerCase().includes(iconName)) as keyof typeof ICONS || allIcons[index % allIcons.length]
       }));
       setApps(fetchedApps);
-    } else if (url) {
+    } else if (url) { // Only show toast if a URL was provided but no apps were fetched.
         toast({
             title: 'Could not fetch apps',
             description: 'Could not fetch apps from your PC. Make sure the server is running and the URL is correct.',
@@ -166,58 +220,67 @@ export default function AppLauncher() {
     setIsLoading(false);
   }, [toast]);
 
+  // useEffect to fetch apps whenever the localServerUrl changes.
   useEffect(() => {
     fetchAndSetApps(localServerUrl);
   }, [localServerUrl, fetchAndSetApps]);
 
+  // A memoized list of apps that are sorted (pinned apps first) and filtered.
   const sortedAndFilteredApps = useMemo(() => {
+    // Start with a copy of the apps array.
     const sortedApps = [...apps].sort((a, b) => {
       const aIsPinned = pinnedApps.includes(a.name);
       const bIsPinned = pinnedApps.includes(b.name);
 
-      if (aIsPinned && !bIsPinned) return -1;
-      if (!aIsPinned && bIsPinned) return 1;
+      if (aIsPinned && !bIsPinned) return -1; // a comes first
+      if (!aIsPinned && bIsPinned) return 1;  // b comes first
       if (aIsPinned && bIsPinned) {
+        // If both are pinned, sort by their order in the pinnedApps array.
         return pinnedApps.indexOf(a.name) - pinnedApps.indexOf(b.name);
       }
+      // If neither is pinned, sort alphabetically.
       return a.name.localeCompare(b.name);
     });
 
+    // If there's no search query, return the sorted list.
     if (!searchQuery) {
         return sortedApps;
     }
+    // Otherwise, return the list filtered by the AI.
     return filteredApps;
   }, [apps, pinnedApps, searchQuery, filteredApps]);
   
 
+  // Callback to handle the AI filtering.
   const handleFilter = useCallback(async (query: string) => {
     if (!query) {
+      // If query is cleared, reset the filtered list to all apps.
       setFilteredApps(apps);
       return;
     }
     setIsFiltering(true);
     const filteredNames = await filterAppsAction(query, appNames);
+    // Create the new list of filtered app objects based on the names returned by the AI.
     const newFilteredApps = apps.filter(app => filteredNames.includes(app.name));
     setFilteredApps(newFilteredApps);
     setIsFiltering(false);
   }, [appNames, apps]);
 
+  // useEffect to trigger the filtering when the debounced search query changes.
   useEffect(() => {
     handleFilter(debouncedSearchQuery);
   }, [debouncedSearchQuery, handleFilter]);
 
 
+  // Handler for the "Save" button in the settings dialog.
   const handleSaveSettings = () => {
     if (!tempServerUrl) {
-        toast({
-            title: 'URL is empty',
-            description: 'Please enter a URL.',
-            variant: 'destructive',
-        });
+        toast({ title: 'URL is empty', description: 'Please enter a URL.', variant: 'destructive' });
         return;
     }
 
     try {
+        // Basic URL validation and formatting.
         const url = new URL(tempServerUrl.includes('://') ? tempServerUrl : `http://${tempServerUrl}`);
         if(!url.port) url.port = "8000"; // Default port if not provided
         const formattedUrl = url.toString().replace(/\/$/, ''); // remove trailing slash
@@ -226,20 +289,28 @@ export default function AppLauncher() {
         setLocalServerUrl(formattedUrl);
         setTempServerUrl(formattedUrl);
 
-        toast({
-          title: 'Settings Saved',
-          description: `Server URL set to ${formattedUrl}`,
-        });
+        toast({ title: 'Settings Saved', description: `Server URL set to ${formattedUrl}` });
         setIsSettingsOpen(false);
     } catch(e) {
-        toast({
-            title: 'Invalid URL',
-            description: 'Please enter a valid URL (e.g., http://192.168.1.10:8000).',
-            variant: 'destructive',
-        });
+        toast({ title: 'Invalid URL', description: 'Please enter a valid URL (e.g., http://192.168.1.10:8000).', variant: 'destructive' });
     }
   };
+  
+  // Handler for the "Test Connection" button.
+  const handleTestConnection = async () => {
+    if(!tempServerUrl) {
+        toast({ title: 'URL is empty', description: 'Please enter a URL to test.', variant: 'destructive' });
+        return;
+    }
+    const success = await testConnection(tempServerUrl);
+    if(success) {
+        toast({ title: 'Success!', description: 'Connection to your PC was successful.', variant: 'default' });
+    } else {
+        toast({ title: 'Connection Failed', description: 'Could not connect to the server. Check the URL and make sure the server is running on your PC.', variant: 'destructive' });
+    }
+  }
 
+  // Toggles the pinned status of an app and saves to localStorage.
   const togglePin = (appName: string) => {
     const newPinnedApps = pinnedApps.includes(appName)
       ? pinnedApps.filter(name => name !== appName)
@@ -249,22 +320,22 @@ export default function AppLauncher() {
     localStorage.setItem('pinnedApps', JSON.stringify(newPinnedApps));
   }
 
+  // Handler for the "Disconnect" button.
   const handleDisconnect = () => {
     localStorage.removeItem('localServerUrl');
     setLocalServerUrl('');
     setTempServerUrl('');
     setApps([]);
-    toast({
-        title: 'Disconnected',
-        description: 'You have been disconnected from the PC server.',
-    });
+    toast({ title: 'Disconnected', description: 'You have been disconnected from the PC server.' });
     setIsSettingsOpen(false);
   }
 
+  // A memoized boolean to easily check connection status.
   const isConnected = useMemo(() => !!localServerUrl, [localServerUrl]);
 
   return (
     <div className="container mx-auto flex max-w-4xl flex-col gap-8 px-4 py-8">
+      {/* Header Section */}
       <header className="flex items-center justify-between">
         <div className="flex items-center gap-3">
             <Power className="h-8 w-8 text-primary" />
@@ -273,6 +344,7 @@ export default function AppLauncher() {
             </h1>
         </div>
         <div className="flex items-center gap-2">
+          {/* Settings Dialog */}
           <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
             <DialogTrigger asChild>
                 {isConnected ? (
@@ -303,18 +375,23 @@ export default function AppLauncher() {
                   />
                 </div>
               </div>
-              <DialogFooter>
-                 {isConnected && (
-                  <Button variant="destructive" onClick={handleDisconnect} className="mr-auto">
-                    <WifiOff /> Disconnect
-                  </Button>
-                )}
-                <DialogClose asChild>
-                  <Button type="button" variant="secondary">Close</Button>
-                </DialogClose>
-                <Button onClick={handleSaveSettings}>
-                  <Save className="mr-2" /> Save
-                </Button>
+              <DialogFooter className="sm:justify-between">
+                 <div className="flex gap-2">
+                    {isConnected && (
+                      <Button variant="destructive" onClick={handleDisconnect} className="mr-auto">
+                        <WifiOff /> Disconnect
+                      </Button>
+                    )}
+                 </div>
+                 <div className="flex gap-2">
+                    <Button type="button" variant="outline" onClick={handleTestConnection}><TestTube2/> Test</Button>
+                    <DialogClose asChild>
+                      <Button type="button" variant="secondary">Close</Button>
+                    </DialogClose>
+                    <Button onClick={handleSaveSettings}>
+                      <Save className="mr-2" /> Save
+                    </Button>
+                 </div>
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -322,6 +399,7 @@ export default function AppLauncher() {
         </div>
       </header>
       
+      {/* "Not Connected" Warning Card */}
       {!isConnected && (
          <Card className="border-destructive bg-destructive/10">
             <CardHeader>
@@ -331,13 +409,13 @@ export default function AppLauncher() {
             </CardHeader>
             <CardContent className="p-6 pt-0">
                 <p className="text-sm text-destructive-foreground/80">
-                    To launch apps, open the settings and enter the local server URL of your computer. You can find instructions on how to set up the server in the project's README.
+                    To launch apps, click the "Connect to PC" button and enter the local server URL of your computer. You can find instructions on how to set up the server in the project's README.
                 </p>
             </CardContent>
          </Card>
       )}
 
-
+      {/* Search Bar */}
       <div className="relative">
         <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
         <Input
@@ -352,8 +430,10 @@ export default function AppLauncher() {
         )}
       </div>
 
+      {/* Main Content Area (App Grid or Loading/Empty State) */}
       <main>
         {isLoading ? (
+          // Show skeleton loaders while fetching apps.
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
             {Array.from({ length: 10 }).map((_, i) => (
               <Skeleton key={i} className="aspect-square w-full rounded-xl" />
@@ -362,6 +442,7 @@ export default function AppLauncher() {
         ) : (
           <AnimatePresence>
             {sortedAndFilteredApps.length > 0 ? (
+              // Display the grid of apps.
               <motion.div
                 layout
                 className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5"
@@ -371,6 +452,7 @@ export default function AppLauncher() {
                 ))}
               </motion.div>
             ) : (
+              // Show a message if no apps are found or if not connected.
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
