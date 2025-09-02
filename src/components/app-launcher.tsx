@@ -2,15 +2,25 @@
 
 import { useState, useEffect, useTransition, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Loader2 } from 'lucide-react';
+import { Search, Loader2, Settings, Save, Power } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { APPS, getIcon, type App as AppType } from '@/lib/mock-data';
 import { filterAppsAction, launchApp } from '@/app/actions';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Button } from './ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+  DialogClose
+} from "@/components/ui/dialog";
+import { Label } from './ui/label';
 
 function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
@@ -78,10 +88,22 @@ export default function AppLauncher() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [isFiltering, startFilteringTransition] = useTransition();
+  const [localServerUrl, setLocalServerUrl] = useState('');
+  const [tempServerUrl, setTempServerUrl] = useState('');
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
   const { toast } = useToast();
 
   const appNames = useMemo(() => apps.map(app => app.name), [apps]);
+
+  useEffect(() => {
+    const storedUrl = localStorage.getItem('localServerUrl');
+    if (storedUrl) {
+      setLocalServerUrl(storedUrl);
+      setTempServerUrl(storedUrl);
+    }
+  }, []);
 
   useEffect(() => {
     // Simulate fetching data
@@ -106,7 +128,16 @@ export default function AppLauncher() {
 
 
   const handleLaunchApp = async (appName: string) => {
-    const result = await launchApp(appName);
+    if (!localServerUrl) {
+      toast({
+        title: 'Configuration Needed',
+        description: 'Please set your PC\'s local server URL in the settings.',
+        variant: 'destructive',
+      });
+      setIsSettingsOpen(true);
+      return;
+    }
+    const result = await launchApp(appName, localServerUrl);
     toast({
       title: result.success ? 'Success' : 'Error',
       description: result.message,
@@ -114,23 +145,94 @@ export default function AppLauncher() {
     });
   };
 
+  const handleSaveSettings = () => {
+    try {
+        const url = new URL(tempServerUrl);
+        if(!url.port) url.port = "8000"; // Default port if not provided
+        const formattedUrl = url.toString();
+        localStorage.setItem('localServerUrl', formattedUrl);
+        setLocalServerUrl(formattedUrl);
+        setTempServerUrl(formattedUrl)
+        toast({
+          title: 'Settings Saved',
+          description: `Server URL set to ${formattedUrl}`,
+        });
+        setIsSettingsOpen(false);
+    } catch(e) {
+        toast({
+            title: 'Invalid URL',
+            description: 'Please enter a valid URL (e.g., http://192.168.1.10).',
+            variant: 'destructive',
+        });
+    }
+  };
+
+  const isConnected = useMemo(() => !!localServerUrl, [localServerUrl]);
+
   return (
     <div className="container mx-auto flex max-w-4xl flex-col gap-8 px-4 py-8">
       <header className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-primary">
-                <path d="M12 2L2 7V17L12 22L22 17V7L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M2 7L12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M12 22V12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M22 7L12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M17 4.5L7 9.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
+            <Power className="h-8 w-8 text-primary" />
             <h1 className="text-2xl font-bold tracking-tight text-foreground">
             Remote Commander
             </h1>
         </div>
-        <ThemeToggle />
+        <div className="flex items-center gap-2">
+          <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="icon">
+                <Settings />
+                <span className="sr-only">Settings</span>
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Settings</DialogTitle>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="server-url" className="text-right">
+                    Server URL
+                  </Label>
+                  <Input
+                    id="server-url"
+                    value={tempServerUrl}
+                    onChange={(e) => setTempServerUrl(e.target.value)}
+                    className="col-span-3"
+                    placeholder="http://<YOUR_LAPTOP_IP>:8000"
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <DialogClose asChild>
+                  <Button type="button" variant="secondary">Close</Button>
+                </DialogClose>
+                <Button onClick={handleSaveSettings}>
+                  <Save className="mr-2" /> Save
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+          <ThemeToggle />
+        </div>
       </header>
+      
+      {!isConnected && (
+         <Card className="border-destructive bg-destructive/10">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base text-destructive">
+                    <Settings/> Not Connected to Your PC
+                </CardTitle>
+            </CardHeader>
+            <CardContent>
+                <p className="text-sm text-destructive-foreground/80">
+                    To launch apps, open the settings and enter the local server URL of your computer. You can find instructions on how to set up the server in the project's README.
+                </p>
+            </CardContent>
+         </Card>
+      )}
+
 
       <div className="relative">
         <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />

@@ -3,16 +3,17 @@
 import { filterApps } from "@/ai/flows/smart-app-filtering";
 import { z } from "zod";
 
-const launchAppSchema = z.string().min(1, "App name cannot be empty.");
+const launchAppSchema = z.object({
+  appName: z.string().min(1, "App name cannot be empty."),
+  localServerUrl: z.string().url("Invalid server URL format.")
+});
 
-export async function launchApp(appName: string) {
-  const validation = launchAppSchema.safeParse(appName);
+export async function launchApp(appName: string, localServerUrl: string) {
+  const validation = launchAppSchema.safeParse({ appName, localServerUrl });
   if (!validation.success) {
-    return { success: false, message: "Invalid app name." };
+    const message = validation.error.errors.map(e => e.message).join(', ');
+    return { success: false, message: `Invalid input: ${message}` };
   }
-
-  // IMPORTANT: Replace <YOUR_LAPTOP_IP> with your PC's local IP address.
-  const localServerUrl = 'http://<YOUR_LAPTOP_IP>:8000';
 
   try {
     const response = await fetch(localServerUrl, {
