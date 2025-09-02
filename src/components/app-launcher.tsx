@@ -302,7 +302,7 @@ export default function AppLauncher() {
                 <DialogTitle>{isConnected ? 'Connection Settings' : 'Connect to your PC'}</DialogTitle>
               </DialogHeader>
               <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
+                <div className="grid w-full items-center gap-1.5">
                   <Label htmlFor="server-url">
                     Server URL
                   </Label>
