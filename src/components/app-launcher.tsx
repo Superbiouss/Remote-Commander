@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, useActionState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Loader2, Settings, Save, Power } from 'lucide-react';
+import { Search, Loader2, Settings, Save, Power, Plug, CheckCircle2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { APPS, getIcon, type App as AppType } from '@/lib/mock-data';
 import { filterAppsAction, launchApp, FormState } from '@/app/actions';
@@ -196,14 +196,19 @@ export default function AppLauncher() {
         <div className="flex items-center gap-2">
           <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline" size="icon">
-                <Settings />
-                <span className="sr-only">Settings</span>
-              </Button>
+                {isConnected ? (
+                    <Button variant="secondary" className="border border-green-500/50 bg-green-500/10 text-green-700 dark:text-green-400 hover:bg-green-500/20">
+                        <CheckCircle2 /> Connected
+                    </Button>
+                ) : (
+                    <Button variant="outline">
+                        <Plug /> Connect to PC
+                    </Button>
+                )}
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Settings</DialogTitle>
+                <DialogTitle>{isConnected ? 'Connection Settings' : 'Connect to your PC'}</DialogTitle>
               </DialogHeader>
               <div className="grid gap-4 py-4">
                 <div className="grid grid-cols-4 items-center gap-4">
