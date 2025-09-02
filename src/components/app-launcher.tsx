@@ -292,9 +292,9 @@ export default function AppLauncher() {
           {/* Settings Dialog */}
           <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
             <DialogTrigger asChild>
-                <Button variant={isConnected ? "secondary" : "outline"} className={isConnected ? "border border-green-500/50 bg-green-500/10 text-green-700 dark:text-green-400 hover:bg-green-500/20" : ""}>
+                <Button variant="outline" size="sm" className={`gap-2 ${isConnected ? "border-green-500/50 bg-green-500/10 text-green-700 dark:text-green-400 hover:bg-green-500/20 hover:text-green-700 dark:hover:text-green-400" : ""}`}>
                   {isConnected ? <CheckCircle2 /> : <Plug />}
-                  {isConnected ? "Connected" : "Connect to PC"}
+                  {isConnected ? "Connected" : "Connect"}
                 </Button>
             </DialogTrigger>
             <DialogContent>
@@ -302,8 +302,8 @@ export default function AppLauncher() {
                 <DialogTitle>{isConnected ? 'Connection Settings' : 'Connect to your PC'}</DialogTitle>
               </DialogHeader>
               <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="server-url" className="text-right">
+                <div className="grid grid-cols-4 items-center">
+                  <Label htmlFor="server-url" className="col-span-1 text-right pr-4">
                     Server URL
                   </Label>
                   <Input
@@ -316,7 +316,7 @@ export default function AppLauncher() {
                 </div>
                  <Card className="col-span-4 bg-muted/50">
                     <CardHeader className="p-4">
-                      <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+                      <CardTitle className="flex items-center gap-2 text-base font-semibold">
                           <Smartphone /> Using a Hotspot?
                       </CardTitle>
                     </CardHeader>
@@ -332,10 +332,10 @@ export default function AppLauncher() {
                     </CardContent>
                 </Card>
               </div>
-              <DialogFooter className="flex-col-reverse gap-2 sm:flex-row sm:justify-between">
-                 <div className="flex gap-2">
+              <DialogFooter className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
+                 <div className="flex justify-start gap-2">
                     {isConnected && (
-                      <Button variant="destructive" onClick={handleDisconnect} className="mr-auto">
+                      <Button variant="destructive" onClick={handleDisconnect}>
                         <WifiOff /> Disconnect
                       </Button>
                     )}
@@ -346,7 +346,7 @@ export default function AppLauncher() {
                       <Button type="button" variant="secondary">Close</Button>
                     </DialogClose>
                     <Button onClick={handleSaveSettings}>
-                      <Save className="mr-2" /> Save
+                      <Save /> Save
                     </Button>
                  </div>
               </DialogFooter>
@@ -366,7 +366,7 @@ export default function AppLauncher() {
             </CardHeader>
             <CardContent className="p-6 pt-0">
                 <p className="text-destructive-foreground/80">
-                    To launch apps, click the "Connect to PC" button and enter your computer's server URL. You can use your home Wi-Fi or your phone's hotspot.
+                    To launch apps, click the "Connect" button and enter your computer's server URL. You can use your home Wi-Fi or your phone's hotspot.
                 </p>
             </CardContent>
          </Card>
@@ -378,7 +378,7 @@ export default function AppLauncher() {
         <Input
           type="search"
           placeholder="Search for an app..."
-          className="w-full rounded-full bg-background/50 py-6 pl-12 pr-12 text-base shadow-lg"
+          className="w-full rounded-full bg-background/50 py-6 pl-12 pr-12"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
@@ -425,5 +425,3 @@ export default function AppLauncher() {
     </div>
   );
 }
-
-    
