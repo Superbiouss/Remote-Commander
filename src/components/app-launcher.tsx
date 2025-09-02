@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, useActionState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Loader2, Settings, Save, Power, Plug, CheckCircle2, Pin, PinOff, GripVertical } from 'lucide-react';
+import { Search, Loader2, Settings, Save, Power, Plug, CheckCircle2, Pin, PinOff, GripVertical, WifiOff } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { ICONS, getIcon, type App as AppType } from '@/lib/mock-data';
 import { filterAppsAction, launchApp, FormState, getAppsFromPC } from '@/app/actions';
@@ -249,6 +249,18 @@ export default function AppLauncher() {
     localStorage.setItem('pinnedApps', JSON.stringify(newPinnedApps));
   }
 
+  const handleDisconnect = () => {
+    localStorage.removeItem('localServerUrl');
+    setLocalServerUrl('');
+    setTempServerUrl('');
+    setApps([]);
+    toast({
+        title: 'Disconnected',
+        description: 'You have been disconnected from the PC server.',
+    });
+    setIsSettingsOpen(false);
+  }
+
   const isConnected = useMemo(() => !!localServerUrl, [localServerUrl]);
 
   return (
@@ -292,6 +304,11 @@ export default function AppLauncher() {
                 </div>
               </div>
               <DialogFooter>
+                 {isConnected && (
+                  <Button variant="destructive" onClick={handleDisconnect} className="mr-auto">
+                    <WifiOff /> Disconnect
+                  </Button>
+                )}
                 <DialogClose asChild>
                   <Button type="button" variant="secondary">Close</Button>
                 </DialogClose>
