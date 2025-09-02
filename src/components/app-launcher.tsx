@@ -12,6 +12,8 @@ import { useFormStatus } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 // Icons from the lucide-react library.
 import { Search, Loader2, Settings, Save, Power, Plug, CheckCircle2, Pin, PinOff, GripVertical, WifiOff, TestTube2, Smartphone } from 'lucide-react';
+// Drag and Drop library
+import { DragDropContext, Droppable, Draggable, type DropResult } from 'react-beautiful-dnd';
 // Custom hook for showing toast notifications.
 import { useToast } from "@/hooks/use-toast";
 // App data and icon mapping.
@@ -38,19 +40,14 @@ import { Label } from './ui/label';
 /**
  * AppCard Component
  * Renders a single application card with its icon and launch functionality.
- * @param app - The application data.
- * @param localServerUrl - The URL of the user's PC server.
- * @param isPinned - A boolean indicating if the app is currently pinned.
- * @param onPinToggle - A callback function to handle pinning/unpinning.
+ * This component is now wrapped with Draggable for re-ordering.
  */
-const AppCard = ({ app, localServerUrl, isPinned, onPinToggle }: { app: AppType; localServerUrl: string; isPinned: boolean; onPinToggle: (appName: string) => void; }) => {
+const AppCard = ({ app, localServerUrl, isPinned, onPinToggle, index }: { app: AppType; localServerUrl: string; isPinned: boolean; onPinToggle: (appName: string) => void; index: number; }) => {
   const Icon = getIcon(app.icon);
-  // useActionState is a React hook for managing form submissions with server actions.
   const initialState: FormState = { success: false, message: "" };
   const [state, formAction] = useActionState(launchApp, initialState);
   const { toast } = useToast();
 
-  // useEffect to show a toast notification when the launch action completes.
   useEffect(() => {
     if (state.message) {
       toast({
@@ -60,39 +57,48 @@ const AppCard = ({ app, localServerUrl, isPinned, onPinToggle }: { app: AppType;
       });
     }
   }, [state, toast]);
+  
+  // A pinned app is draggable. A non-pinned app is not.
+  const isDraggable = isPinned;
 
   return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, scale: 0.8 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.8 }}
-      transition={{ type: "spring", stiffness: 300, damping: 25 }}
-      className="relative"
-    >
-      <Card
-        className="h-full w-full overflow-hidden border-2 border-transparent transition-all duration-300 hover:border-primary hover:shadow-2xl hover:shadow-primary/20"
-      >
-        <form action={formAction}>
-            <input type="hidden" name="appName" value={app.name} />
-            <input type="hidden" name="localServerUrl" value={localServerUrl} />
-            <LaunchButton icon={Icon} appName={app.name}/>
-        </form>
-      </Card>
-      {/* Pin/Unpin button */}
-      <Button
-        size="icon"
-        variant="ghost"
-        className="absolute top-1 right-1 h-8 w-8 rounded-full bg-background/50 text-foreground/70 hover:bg-background hover:text-foreground"
-        onClick={() => onPinToggle(app.name)}
-      >
-        {isPinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
-      </Button>
-      {/* Visual indicator for pinned apps */}
-      {isPinned && <GripVertical className="absolute top-1 left-1 h-5 w-5 text-muted-foreground/50" />}
-    </motion.div>
+    <Draggable draggableId={app.name} index={index} isDragDisabled={!isDraggable}>
+      {(provided, snapshot) => (
+        <motion.div
+          ref={provided.innerRef}
+          {...provided.draggableProps}
+          {...provided.dragHandleProps}
+          layout
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.8 }}
+          transition={{ type: "spring", stiffness: 300, damping: 25 }}
+          className={`relative ${snapshot.isDragging ? 'shadow-2xl' : ''}`}
+        >
+          <Card
+            className="h-full w-full overflow-hidden border-2 border-transparent transition-all duration-300 hover:border-primary hover:shadow-2xl hover:shadow-primary/20"
+          >
+            <form action={formAction}>
+                <input type="hidden" name="appName" value={app.name} />
+                <input type="hidden" name="localServerUrl" value={localServerUrl} />
+                <LaunchButton icon={Icon} appName={app.name}/>
+            </form>
+          </Card>
+          <Button
+            size="icon"
+            variant="ghost"
+            className="absolute top-1 right-1 h-8 w-8 rounded-full bg-background/50 text-foreground/70 hover:bg-background hover:text-foreground"
+            onClick={() => onPinToggle(app.name)}
+          >
+            {isPinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
+          </Button>
+          {isPinned && <GripVertical className="absolute top-1 left-1 h-5 w-5 text-muted-foreground/50" />}
+        </motion.div>
+      )}
+    </Draggable>
   );
 };
+
 
 /**
  * LaunchButton Component
@@ -129,53 +135,49 @@ function LaunchButton({ icon: Icon, appName }: { icon: React.ElementType, appNam
  * This is the main default export of the file, containing the entire page logic.
  */
 export default function AppLauncher() {
-  // State for the full list of apps fetched from the PC.
   const [apps, setApps] = useState<AppType[]>([]);
-  // State to show loading skeletons while apps are being fetched.
   const [isLoading, setIsLoading] = useState(true);
-  // State for the user's search query.
   const [searchQuery, setSearchQuery] = useState('');
-  // State for the local PC server URL. This is the source of truth for the connection.
   const [localServerUrl, setLocalServerUrl] = useState('');
-  // Temporary state for the URL input field in the settings dialog.
   const [tempServerUrl, setTempServerUrl] = useState('');
-  // State to control the visibility of the settings dialog.
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  // State for the list of pinned app names, stored in localStorage.
   const [pinnedApps, setPinnedApps] = useState<string[]>([]);
   
   const { toast } = useToast();
 
-  // useEffect to load saved settings from localStorage on initial component mount.
   useEffect(() => {
     const storedUrl = localStorage.getItem('localServerUrl');
     if (storedUrl) {
       setLocalServerUrl(storedUrl);
       setTempServerUrl(storedUrl);
     } else {
-        // If no URL is stored, automatically open the settings dialog.
         setIsSettingsOpen(true);
     }
     const storedPinnedApps = localStorage.getItem('pinnedApps');
     if(storedPinnedApps) {
-        setPinnedApps(JSON.parse(storedPinnedApps));
+        try {
+          const parsedPinnedApps = JSON.parse(storedPinnedApps);
+          if (Array.isArray(parsedPinnedApps)) {
+            setPinnedApps(parsedPinnedApps);
+          }
+        } catch (e) {
+          console.error("Failed to parse pinned apps from localStorage", e);
+          localStorage.removeItem('pinnedApps');
+        }
     }
   }, []);
 
-  // Callback to fetch the list of apps from the PC server.
   const fetchAndSetApps = useCallback(async (url: string) => {
     setIsLoading(true);
     const appNames = await getAppsFromPC(url);
     if (appNames.length > 0) {
       const allIcons = Object.keys(ICONS);
-      // Map the fetched app names to AppType objects, assigning an icon.
       const fetchedApps: AppType[] = appNames.map((name, index) => ({
         name,
-        // Tries to find a matching icon name, otherwise cycles through available icons.
         icon: allIcons.find(iconName => name.toLowerCase().includes(iconName)) as keyof typeof ICONS || allIcons[index % allIcons.length]
       }));
       setApps(fetchedApps);
-    } else if (url) { // Only show toast if a URL was provided but no apps were fetched.
+    } else if (url) {
         toast({
             title: 'Could not fetch apps',
             description: 'Could not fetch apps from your PC. Make sure the server is running and the URL is correct.',
@@ -188,36 +190,29 @@ export default function AppLauncher() {
     setIsLoading(false);
   }, [toast]);
 
-  // useEffect to fetch apps whenever the localServerUrl changes.
   useEffect(() => {
     fetchAndSetApps(localServerUrl);
   }, [localServerUrl, fetchAndSetApps]);
 
-  // A memoized list of apps that are sorted (pinned apps first) and filtered.
   const sortedAndFilteredApps = useMemo(() => {
-    // Start with a copy of the apps array, filtered by the search query.
     const filtered = searchQuery
         ? apps.filter(app => app.name.toLowerCase().includes(searchQuery.toLowerCase()))
         : apps;
         
-    // Sort the filtered apps.
     return filtered.sort((a, b) => {
       const aIsPinned = pinnedApps.includes(a.name);
       const bIsPinned = pinnedApps.includes(b.name);
 
-      if (aIsPinned && !bIsPinned) return -1; // a comes first
-      if (!aIsPinned && bIsPinned) return 1;  // b comes first
+      if (aIsPinned && !bIsPinned) return -1;
+      if (!aIsPinned && bIsPinned) return 1;
       if (aIsPinned && bIsPinned) {
-        // If both are pinned, sort by their order in the pinnedApps array.
         return pinnedApps.indexOf(a.name) - pinnedApps.indexOf(b.name);
       }
-      // If neither is pinned, sort alphabetically.
       return a.name.localeCompare(b.name);
     });
   }, [apps, pinnedApps, searchQuery]);
   
 
-  // Handler for the "Save" button in the settings dialog.
   const handleSaveSettings = () => {
     if (!tempServerUrl) {
         toast({ title: 'URL is empty', description: 'Please enter a URL.', variant: 'destructive' });
@@ -225,10 +220,9 @@ export default function AppLauncher() {
     }
 
     try {
-        // Basic URL validation and formatting.
         const url = new URL(tempServerUrl.includes('://') ? tempServerUrl : `http://${tempServerUrl}`);
-        if(!url.port) url.port = "8000"; // Default port if not provided
-        const formattedUrl = url.toString().replace(/\/$/, ''); // remove trailing slash
+        if(!url.port) url.port = "8000";
+        const formattedUrl = url.toString().replace(/\/$/, '');
         
         localStorage.setItem('localServerUrl', formattedUrl);
         setLocalServerUrl(formattedUrl);
@@ -241,7 +235,6 @@ export default function AppLauncher() {
     }
   };
   
-  // Handler for the "Test Connection" button.
   const handleTestConnection = async () => {
     if(!tempServerUrl) {
         toast({ title: 'URL is empty', description: 'Please enter a URL to test.', variant: 'destructive' });
@@ -255,7 +248,6 @@ export default function AppLauncher() {
     }
   }
 
-  // Toggles the pinned status of an app and saves to localStorage.
   const togglePin = (appName: string) => {
     const newPinnedApps = pinnedApps.includes(appName)
       ? pinnedApps.filter(name => name !== appName)
@@ -265,7 +257,6 @@ export default function AppLauncher() {
     localStorage.setItem('pinnedApps', JSON.stringify(newPinnedApps));
   }
 
-  // Handler for the "Disconnect" button.
   const handleDisconnect = () => {
     localStorage.removeItem('localServerUrl');
     setLocalServerUrl('');
@@ -275,7 +266,29 @@ export default function AppLauncher() {
     setIsSettingsOpen(false);
   }
 
-  // A memoized boolean to easily check connection status.
+  const onDragEnd = (result: DropResult) => {
+    const { destination, source, draggableId } = result;
+    
+    // If dropped outside a droppable area, do nothing
+    if (!destination) {
+      return;
+    }
+    
+    // If dropped in the same place, do nothing
+    if (destination.droppableId === source.droppableId && destination.index === source.index) {
+      return;
+    }
+    
+    // Reorder logic for pinned apps
+    const newPinnedApps = Array.from(pinnedApps);
+    newPinnedApps.splice(source.index, 1);
+    newPinnedApps.splice(destination.index, 0, draggableId);
+    
+    setPinnedApps(newPinnedApps);
+    localStorage.setItem('pinnedApps', JSON.stringify(newPinnedApps));
+  };
+
+
   const isConnected = useMemo(() => !!localServerUrl, [localServerUrl]);
 
   return (
@@ -387,7 +400,6 @@ export default function AppLauncher() {
       {/* Main Content Area (App Grid or Loading/Empty State) */}
       <main>
         {isLoading ? (
-          // Show skeleton loaders while fetching apps.
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
             {Array.from({ length: 10 }).map((_, i) => (
               <Skeleton key={i} className="aspect-square w-full rounded-xl" />
@@ -396,17 +408,31 @@ export default function AppLauncher() {
         ) : (
           <AnimatePresence>
             {sortedAndFilteredApps.length > 0 ? (
-              // Display the grid of apps.
-              <motion.div
-                layout
-                className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5"
-              >
-                {sortedAndFilteredApps.map((app) => (
-                  <AppCard key={app.name} app={app} localServerUrl={localServerUrl} isPinned={pinnedApps.includes(app.name)} onPinToggle={togglePin} />
-                ))}
-              </motion.div>
+              <DragDropContext onDragEnd={onDragEnd}>
+                <Droppable droppableId="app-grid" direction="horizontal">
+                  {(provided) => (
+                    <motion.div
+                      ref={provided.innerRef}
+                      {...provided.droppableProps}
+                      layout
+                      className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5"
+                    >
+                      {sortedAndFilteredApps.map((app, index) => (
+                        <AppCard 
+                          key={app.name} 
+                          app={app} 
+                          localServerUrl={localServerUrl} 
+                          isPinned={pinnedApps.includes(app.name)} 
+                          onPinToggle={togglePin}
+                          index={index}
+                        />
+                      ))}
+                      {provided.placeholder}
+                    </motion.div>
+                  )}
+                </Droppable>
+              </DragDropContext>
             ) : (
-              // Show a message if no apps are found or if not connected.
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
