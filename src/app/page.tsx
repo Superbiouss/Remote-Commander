@@ -1,3 +1,9 @@
+import AppLauncher from '@/components/app-launcher';
+
 export default function Home() {
-  return <></>;
+  return (
+    <div className="flex min-h-screen w-full flex-col">
+      <AppLauncher />
+    </div>
+  );
 }
