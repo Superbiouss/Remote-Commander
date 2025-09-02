@@ -1,11 +1,12 @@
 import type { LucideIcon } from 'lucide-react';
-import { Code, Terminal, Chrome, Figma, Bot, FileText, GitBranch, Mic, Music, Camera } from 'lucide-react';
+import { Code, Terminal, Chrome, Figma, Bot, FileText, GitBranch, Mic, Music, Camera, Pin, PinOff, GripVertical } from 'lucide-react';
 
 export interface App {
   name: string;
   icon: keyof typeof ICONS;
 }
 
+// This is now a fallback or for development without the local server.
 export const APPS: App[] = [
   { name: 'VS Code', icon: 'code' },
   { name: 'Terminal', icon: 'terminal' },
@@ -30,6 +31,9 @@ export const ICONS = {
     mic: Mic,
     music: Music,
     camera: Camera,
+    pin: Pin,
+    pinoff: PinOff,
+    gripvertical: GripVertical,
 } as const;
 
 export type IconName = keyof typeof ICONS;

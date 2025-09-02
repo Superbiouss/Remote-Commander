@@ -3,10 +3,10 @@
 import { useState, useEffect, useCallback, useMemo, useActionState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Loader2, Settings, Save, Power, Plug, CheckCircle2 } from 'lucide-react';
+import { Search, Loader2, Settings, Save, Power, Plug, CheckCircle2, Pin, PinOff, GripVertical } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
-import { APPS, getIcon, type App as AppType } from '@/lib/mock-data';
-import { filterAppsAction, launchApp, FormState } from '@/app/actions';
+import { ICONS, getIcon, type App as AppType } from '@/lib/mock-data';
+import { filterAppsAction, launchApp, FormState, getAppsFromPC } from '@/app/actions';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -39,7 +39,7 @@ function useDebounce<T>(value: T, delay: number): T {
   return debouncedValue;
 }
 
-const AppCard = ({ app, localServerUrl }: { app: AppType; localServerUrl: string }) => {
+const AppCard = ({ app, localServerUrl, isPinned, onPinToggle }: { app: AppType; localServerUrl: string; isPinned: boolean; onPinToggle: (appName: string) => void; }) => {
   const Icon = getIcon(app.icon);
   const initialState: FormState = { success: false, message: "" };
   const [state, formAction] = useActionState(launchApp, initialState);
@@ -62,6 +62,7 @@ const AppCard = ({ app, localServerUrl }: { app: AppType; localServerUrl: string
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.8 }}
       transition={{ type: "spring", stiffness: 300, damping: 25 }}
+      className="relative"
     >
       <Card
         className="h-full w-full overflow-hidden border-2 border-transparent transition-all duration-300 hover:border-primary hover:shadow-2xl hover:shadow-primary/20"
@@ -72,6 +73,15 @@ const AppCard = ({ app, localServerUrl }: { app: AppType; localServerUrl: string
             <LaunchButton icon={Icon} appName={app.name}/>
         </form>
       </Card>
+      <Button
+        size="icon"
+        variant="ghost"
+        className="absolute top-1 right-1 h-8 w-8 rounded-full bg-background/50 text-foreground/70 hover:bg-background hover:text-foreground"
+        onClick={() => onPinToggle(app.name)}
+      >
+        {isPinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
+      </Button>
+      {isPinned && <GripVertical className="absolute top-1 left-1 h-5 w-5 text-muted-foreground/50" />}
     </motion.div>
   );
 };
@@ -111,6 +121,7 @@ export default function AppLauncher() {
   const [localServerUrl, setLocalServerUrl] = useState('');
   const [tempServerUrl, setTempServerUrl] = useState('');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [pinnedApps, setPinnedApps] = useState<string[]>([]);
   
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
   const { toast } = useToast();
@@ -125,18 +136,65 @@ export default function AppLauncher() {
     } else {
         setIsSettingsOpen(true);
     }
+    const storedPinnedApps = localStorage.getItem('pinnedApps');
+    if(storedPinnedApps) {
+        setPinnedApps(JSON.parse(storedPinnedApps));
+    }
   }, []);
+
+  const fetchAndSetApps = useCallback(async (url: string) => {
+    setIsLoading(true);
+    const appNames = await getAppsFromPC(url);
+    if (appNames.length > 0) {
+      const allIcons = Object.keys(ICONS);
+      const fetchedApps: AppType[] = appNames.map((name, index) => ({
+        name,
+        // Assign icons based on availability or fallback
+        icon: allIcons.find(iconName => name.toLowerCase().includes(iconName)) as keyof typeof ICONS || allIcons[index % allIcons.length]
+      }));
+      setApps(fetchedApps);
+    } else if (url) {
+        toast({
+            title: 'Could not fetch apps',
+            description: 'Could not fetch apps from your PC. Make sure the server is running and the URL is correct.',
+            variant: 'destructive',
+        });
+        setApps([]);
+    } else {
+        setApps([]);
+    }
+    setIsLoading(false);
+  }, [toast]);
 
   useEffect(() => {
-    // Simulate fetching data
-    setTimeout(() => {
-      setApps(APPS);
-      setFilteredApps(APPS);
-      setIsLoading(false);
-    }, 1000);
-  }, []);
+    fetchAndSetApps(localServerUrl);
+  }, [localServerUrl, fetchAndSetApps]);
+
+  const sortedAndFilteredApps = useMemo(() => {
+    const sortedApps = [...apps].sort((a, b) => {
+      const aIsPinned = pinnedApps.includes(a.name);
+      const bIsPinned = pinnedApps.includes(b.name);
+
+      if (aIsPinned && !bIsPinned) return -1;
+      if (!aIsPinned && bIsPinned) return 1;
+      if (aIsPinned && bIsPinned) {
+        return pinnedApps.indexOf(a.name) - pinnedApps.indexOf(b.name);
+      }
+      return a.name.localeCompare(b.name);
+    });
+
+    if (!searchQuery) {
+        return sortedApps;
+    }
+    return filteredApps;
+  }, [apps, pinnedApps, searchQuery, filteredApps]);
+  
 
   const handleFilter = useCallback(async (query: string) => {
+    if (!query) {
+      setFilteredApps(apps);
+      return;
+    }
     setIsFiltering(true);
     const filteredNames = await filterAppsAction(query, appNames);
     const newFilteredApps = apps.filter(app => filteredNames.includes(app.name));
@@ -181,6 +239,15 @@ export default function AppLauncher() {
         });
     }
   };
+
+  const togglePin = (appName: string) => {
+    const newPinnedApps = pinnedApps.includes(appName)
+      ? pinnedApps.filter(name => name !== appName)
+      : [...pinnedApps, appName];
+    
+    setPinnedApps(newPinnedApps);
+    localStorage.setItem('pinnedApps', JSON.stringify(newPinnedApps));
+  }
 
   const isConnected = useMemo(() => !!localServerUrl, [localServerUrl]);
 
@@ -277,13 +344,13 @@ export default function AppLauncher() {
           </div>
         ) : (
           <AnimatePresence>
-            {filteredApps.length > 0 ? (
+            {sortedAndFilteredApps.length > 0 ? (
               <motion.div
                 layout
                 className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5"
               >
-                {filteredApps.map((app) => (
-                  <AppCard key={app.name} app={app} localServerUrl={localServerUrl} />
+                {sortedAndFilteredApps.map((app) => (
+                  <AppCard key={app.name} app={app} localServerUrl={localServerUrl} isPinned={pinnedApps.includes(app.name)} onPinToggle={togglePin} />
                 ))}
               </motion.div>
             ) : (
@@ -295,7 +362,7 @@ export default function AppLauncher() {
                 <Search className="h-16 w-16 text-muted-foreground/50" />
                 <h2 className="text-xl font-semibold">No Applications Found</h2>
                 <p className="text-muted-foreground">
-                  Your search for "{searchQuery}" did not match any applications.
+                    {isConnected ? `Your search for "${searchQuery}" did not match any applications.` : "Connect to your PC to see your applications."}
                 </p>
               </motion.div>
             )}

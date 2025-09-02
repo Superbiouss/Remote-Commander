@@ -69,3 +69,22 @@ export async function filterAppsAction(
     );
   }
 }
+
+export async function getAppsFromPC(serverUrl: string): Promise<string[]> {
+    if(!serverUrl) return [];
+    try {
+        const response = await fetch(`${serverUrl}/apps`, {
+            method: 'GET',
+            cache: 'no-store'
+        });
+        if(!response.ok) {
+            console.error('Failed to fetch apps from PC');
+            return [];
+        }
+        const data = await response.json();
+        return data.apps || [];
+    } catch(e) {
+        console.error('Error fetching apps from PC:', e);
+        return [];
+    }
+}
