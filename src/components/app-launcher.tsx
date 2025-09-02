@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useFormState, useFormStatus } from 'react-dom';
+import { useState, useEffect, useCallback, useMemo, useActionState } from 'react';
+import { useFormStatus } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Loader2, Settings, Save, Power } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
@@ -42,7 +42,7 @@ function useDebounce<T>(value: T, delay: number): T {
 const AppCard = ({ app, localServerUrl }: { app: AppType; localServerUrl: string }) => {
   const Icon = getIcon(app.icon);
   const initialState: FormState = { success: false, message: "" };
-  const [state, formAction] = useFormState(launchApp, initialState);
+  const [state, formAction] = useActionState(launchApp, initialState);
   const { toast } = useToast();
 
   useEffect(() => {
