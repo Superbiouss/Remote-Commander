@@ -11,7 +11,7 @@ import { useFormStatus } from 'react-dom';
 // Framer Motion for animations.
 import { motion, AnimatePresence } from 'framer-motion';
 // Icons from the lucide-react library.
-import { Search, Loader2, Settings, Save, Power, Plug, CheckCircle2, Pin, PinOff, GripVertical, WifiOff, TestTube2 } from 'lucide-react';
+import { Search, Loader2, Settings, Save, Power, Plug, CheckCircle2, Pin, PinOff, GripVertical, WifiOff, TestTube2, Smartphone } from 'lucide-react';
 // Custom hook for showing toast notifications.
 import { useToast } from "@/hooks/use-toast";
 // App data and icon mapping.
@@ -19,7 +19,7 @@ import { ICONS, getIcon, type App as AppType } from '@/lib/mock-data';
 // Server actions imported from the actions file.
 import { launchApp, FormState, getAppsFromPC, testConnection } from '@/app/actions';
 // UI components from the shadcn/ui library.
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -292,15 +292,10 @@ export default function AppLauncher() {
           {/* Settings Dialog */}
           <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
             <DialogTrigger asChild>
-                {isConnected ? (
-                    <Button variant="secondary" className="border border-green-500/50 bg-green-500/10 text-green-700 dark:text-green-400 hover:bg-green-500/20">
-                        <CheckCircle2 /> Connected
-                    </Button>
-                ) : (
-                    <Button variant="outline">
-                        <Plug /> Connect to PC
-                    </Button>
-                )}
+                <Button variant={isConnected ? "secondary" : "outline"} className={isConnected ? "border border-green-500/50 bg-green-500/10 text-green-700 dark:text-green-400 hover:bg-green-500/20" : ""}>
+                  {isConnected ? <CheckCircle2 /> : <Plug />}
+                  {isConnected ? "Connected" : "Connect to PC"}
+                </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
@@ -319,8 +314,25 @@ export default function AppLauncher() {
                     placeholder="http://<YOUR_PC_IP>:8000"
                   />
                 </div>
+                 <Card className="col-span-4 bg-muted/50">
+                    <CardHeader className="p-4">
+                      <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+                          <Smartphone /> Using a Hotspot?
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-4 pt-0 text-sm text-muted-foreground">
+                       <p>
+                        If you don't have Wi-Fi, you can use your phone's hotspot.
+                       </p>
+                       <ol className="list-decimal pl-5 mt-2 space-y-1">
+                          <li>Turn on your phone's hotspot and connect your laptop to it.</li>
+                          <li>On your laptop, find its new IP address (e.g., `ipconfig` on Windows, `ifconfig` on macOS/Linux).</li>
+                          <li>Enter that IP address in the URL field above.</li>
+                       </ol>
+                    </CardContent>
+                </Card>
               </div>
-              <DialogFooter className="sm:justify-between">
+              <DialogFooter className="flex-col-reverse gap-2 sm:flex-row sm:justify-between">
                  <div className="flex gap-2">
                     {isConnected && (
                       <Button variant="destructive" onClick={handleDisconnect} className="mr-auto">
@@ -348,13 +360,13 @@ export default function AppLauncher() {
       {!isConnected && (
          <Card className="border-destructive bg-destructive/10">
             <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base text-destructive-foreground">
+                <CardTitle className="flex items-center gap-2 text-destructive">
                     <Settings/> Not Connected to Your PC
                 </CardTitle>
             </CardHeader>
             <CardContent className="p-6 pt-0">
-                <p className="text-sm text-destructive-foreground/80">
-                    To launch apps, click the "Connect to PC" button and enter the local server URL of your computer. You can find instructions on how to set up the server in the project's README.
+                <p className="text-destructive-foreground/80">
+                    To launch apps, click the "Connect to PC" button and enter your computer's server URL. You can use your home Wi-Fi or your phone's hotspot.
                 </p>
             </CardContent>
          </Card>
@@ -413,3 +425,5 @@ export default function AppLauncher() {
     </div>
   );
 }
+
+    
