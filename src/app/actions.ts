@@ -5,13 +5,25 @@ import { z } from "zod";
 
 const launchAppSchema = z.object({
   appName: z.string().min(1, "App name cannot be empty."),
-  localServerUrl: z.string().url("Invalid server URL format.")
+  localServerUrl: z.string().url("Please set a valid server URL in settings."),
 });
 
-export async function launchApp(appName: string, localServerUrl: string) {
+export type FormState = {
+  success: boolean;
+  message: string;
+};
+
+export async function launchApp(
+  prevState: FormState,
+  formData: FormData
+): Promise<FormState> {
+  const appName = formData.get("appName") as string;
+  const localServerUrl = formData.get("localServerUrl") as string;
+  
   const validation = launchAppSchema.safeParse({ appName, localServerUrl });
+
   if (!validation.success) {
-    const message = validation.error.errors.map(e => e.message).join(', ');
+    const message = validation.error.errors.map((e) => e.message).join(", ");
     return { success: false, message: `Invalid input: ${message}` };
   }
 
@@ -20,6 +32,7 @@ export async function launchApp(appName: string, localServerUrl: string) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ app: appName }),
+      cache: 'no-store',
     });
     
     if (!response.ok) {
@@ -31,10 +44,10 @@ export async function launchApp(appName: string, localServerUrl: string) {
     return { success: data.success, message: data.message || `${appName} launched successfully.` };
   } catch (error) {
     console.error("Launch error:", error);
-    if (error instanceof Error && error.message.includes('fetch')) {
-       return { success: false, message: `Could not connect to your PC. Is the local server running at ${localServerUrl}?` };
+    if (error instanceof Error && (error.message.includes('fetch') || error.message.includes('Failed to fetch'))) {
+       return { success: false, message: `Could not connect to your PC. Is the server running at ${localServerUrl}?` };
     }
-    return { success: false, message: `Failed to launch ${appName}.` };
+    return { success: false, message: `Failed to launch ${appName}. Check if the local server is running.` };
   }
 }
 

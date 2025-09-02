@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect, useTransition, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useFormState, useFormStatus } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Loader2, Settings, Save, Power } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { APPS, getIcon, type App as AppType } from '@/lib/mock-data';
-import { filterAppsAction, launchApp } from '@/app/actions';
+import { filterAppsAction, launchApp, FormState } from '@/app/actions';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -38,15 +39,21 @@ function useDebounce<T>(value: T, delay: number): T {
   return debouncedValue;
 }
 
-const AppCard = ({ app, onLaunch }: { app: AppType; onLaunch: (appName: string) => void }) => {
+const AppCard = ({ app, localServerUrl }: { app: AppType; localServerUrl: string }) => {
   const Icon = getIcon(app.icon);
-  const [isLaunching, startLaunchTransition] = useTransition();
+  const initialState: FormState = { success: false, message: "" };
+  const [state, formAction] = useFormState(launchApp, initialState);
+  const { toast } = useToast();
 
-  const handleLaunch = () => {
-    startLaunchTransition(() => {
-      onLaunch(app.name);
-    });
-  };
+  useEffect(() => {
+    if (state.message) {
+      toast({
+        title: state.success ? 'Success' : 'Error',
+        description: state.message,
+        variant: state.success ? 'default' : 'destructive',
+      });
+    }
+  }, [state, toast]);
 
   return (
     <motion.div
@@ -59,27 +66,40 @@ const AppCard = ({ app, onLaunch }: { app: AppType; onLaunch: (appName: string) 
       <Card
         className="h-full w-full overflow-hidden border-2 border-transparent transition-all duration-300 hover:border-primary hover:shadow-2xl hover:shadow-primary/20"
       >
+        <form action={formAction}>
+            <input type="hidden" name="appName" value={app.name} />
+            <input type="hidden" name="localServerUrl" value={localServerUrl} />
+            <LaunchButton icon={Icon} appName={app.name}/>
+        </form>
+      </Card>
+    </motion.div>
+  );
+};
+
+function LaunchButton({ icon: Icon, appName }: { icon: React.ElementType, appName: string }) {
+    const { pending } = useFormStatus();
+
+    return (
         <Button
+          type="submit"
           variant="ghost"
           className="h-full w-full p-0"
-          onClick={handleLaunch}
-          disabled={isLaunching}
+          disabled={pending}
+          aria-disabled={pending}
         >
           <CardContent className="flex h-full w-full flex-col items-center justify-center gap-4 p-6">
-            {isLaunching ? (
+            {pending ? (
               <Loader2 className="h-10 w-10 animate-spin text-primary" />
             ) : (
               <Icon className="h-10 w-10 text-primary" />
             )}
             <span className="text-center font-medium text-card-foreground">
-              {app.name}
+              {appName}
             </span>
           </CardContent>
         </Button>
-      </Card>
-    </motion.div>
-  );
-};
+    )
+}
 
 
 export default function AppLauncher() {
@@ -87,7 +107,7 @@ export default function AppLauncher() {
   const [filteredApps, setFilteredApps] = useState<AppType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [isFiltering, startFilteringTransition] = useTransition();
+  const [isFiltering, setIsFiltering] = useState(false);
   const [localServerUrl, setLocalServerUrl] = useState('');
   const [tempServerUrl, setTempServerUrl] = useState('');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -102,6 +122,8 @@ export default function AppLauncher() {
     if (storedUrl) {
       setLocalServerUrl(storedUrl);
       setTempServerUrl(storedUrl);
+    } else {
+        setIsSettingsOpen(true);
     }
   }, []);
 
@@ -115,11 +137,11 @@ export default function AppLauncher() {
   }, []);
 
   const handleFilter = useCallback(async (query: string) => {
-    startFilteringTransition(async () => {
-      const filteredNames = await filterAppsAction(query, appNames);
-      const newFilteredApps = apps.filter(app => filteredNames.includes(app.name));
-      setFilteredApps(newFilteredApps);
-    });
+    setIsFiltering(true);
+    const filteredNames = await filterAppsAction(query, appNames);
+    const newFilteredApps = apps.filter(app => filteredNames.includes(app.name));
+    setFilteredApps(newFilteredApps);
+    setIsFiltering(false);
   }, [appNames, apps]);
 
   useEffect(() => {
@@ -127,32 +149,25 @@ export default function AppLauncher() {
   }, [debouncedSearchQuery, handleFilter]);
 
 
-  const handleLaunchApp = async (appName: string) => {
-    if (!localServerUrl) {
-      toast({
-        title: 'Configuration Needed',
-        description: 'Please set your PC\'s local server URL in the settings.',
-        variant: 'destructive',
-      });
-      setIsSettingsOpen(true);
-      return;
-    }
-    const result = await launchApp(appName, localServerUrl);
-    toast({
-      title: result.success ? 'Success' : 'Error',
-      description: result.message,
-      variant: result.success ? 'default' : 'destructive',
-    });
-  };
-
   const handleSaveSettings = () => {
+    if (!tempServerUrl) {
+        toast({
+            title: 'URL is empty',
+            description: 'Please enter a URL.',
+            variant: 'destructive',
+        });
+        return;
+    }
+
     try {
-        const url = new URL(tempServerUrl);
+        const url = new URL(tempServerUrl.includes('://') ? tempServerUrl : `http://${tempServerUrl}`);
         if(!url.port) url.port = "8000"; // Default port if not provided
-        const formattedUrl = url.toString();
+        const formattedUrl = url.toString().replace(/\/$/, ''); // remove trailing slash
+        
         localStorage.setItem('localServerUrl', formattedUrl);
         setLocalServerUrl(formattedUrl);
-        setTempServerUrl(formattedUrl)
+        setTempServerUrl(formattedUrl);
+
         toast({
           title: 'Settings Saved',
           description: `Server URL set to ${formattedUrl}`,
@@ -161,7 +176,7 @@ export default function AppLauncher() {
     } catch(e) {
         toast({
             title: 'Invalid URL',
-            description: 'Please enter a valid URL (e.g., http://192.168.1.10).',
+            description: 'Please enter a valid URL (e.g., http://192.168.1.10:8000).',
             variant: 'destructive',
         });
     }
@@ -200,7 +215,7 @@ export default function AppLauncher() {
                     value={tempServerUrl}
                     onChange={(e) => setTempServerUrl(e.target.value)}
                     className="col-span-3"
-                    placeholder="http://<YOUR_LAPTOP_IP>:8000"
+                    placeholder="http://<YOUR_PC_IP>:8000"
                   />
                 </div>
               </div>
@@ -221,11 +236,11 @@ export default function AppLauncher() {
       {!isConnected && (
          <Card className="border-destructive bg-destructive/10">
             <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base text-destructive">
+                <CardTitle className="flex items-center gap-2 text-base text-destructive-foreground">
                     <Settings/> Not Connected to Your PC
                 </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-6 pt-0">
                 <p className="text-sm text-destructive-foreground/80">
                     To launch apps, open the settings and enter the local server URL of your computer. You can find instructions on how to set up the server in the project's README.
                 </p>
@@ -263,7 +278,7 @@ export default function AppLauncher() {
                 className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5"
               >
                 {filteredApps.map((app) => (
-                  <AppCard key={app.name} app={app} onLaunch={handleLaunchApp} />
+                  <AppCard key={app.name} app={app} localServerUrl={localServerUrl} />
                 ))}
               </motion.div>
             ) : (
