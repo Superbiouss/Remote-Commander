@@ -9,15 +9,6 @@
  */
 "use server";
 
-import { z } from "zod";
-
-// Define a Zod schema for validating the data needed to launch an app.
-// This helps prevent invalid data from being processed.
-const launchAppSchema = z.object({
-  appName: z.string().min(1, "App name cannot be empty."),
-  localServerUrl: z.string().url("Please set a valid server URL in settings."),
-});
-
 // Define a TypeScript type for the form state, used for handling form submissions with React's useActionState hook.
 export type FormState = {
   success: boolean;
@@ -39,12 +30,8 @@ export async function launchApp(
   const appName = formData.get("appName") as string;
   const localServerUrl = formData.get("localServerUrl") as string;
   
-  // Validate the incoming form data against the schema.
-  const validation = launchAppSchema.safeParse({ appName, localServerUrl });
-
-  if (!validation.success) {
-    const message = validation.error.errors.map((e) => e.message).join(", ");
-    return { success: false, message: `Invalid input: ${message}` };
+  if (!appName || !localServerUrl) {
+    return { success: false, message: "Invalid input: App name or server URL is missing." };
   }
 
   // If validation passes, attempt to send the request to the local PC server.
