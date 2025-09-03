@@ -520,7 +520,7 @@ export default function AppLauncher() {
                         localServerUrl={localServerUrl} 
                         isPinned={pinnedApps.includes(app.name)} 
                         onPinToggle={togglePin}
-                        index={index} // Index here doesn't matter much for drag-drop as search isn't draggable
+                        index={index}
                     />
                     ))}
                 </motion.div>
