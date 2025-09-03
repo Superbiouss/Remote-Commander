@@ -11,7 +11,7 @@ import { useFormStatus } from 'react-dom';
 // Framer Motion for animations.
 import { motion, AnimatePresence } from 'framer-motion';
 // Icons from the lucide-react library.
-import { Search, Loader2, Settings, Save, Power, Plug, CheckCircle2, Pin, PinOff, GripVertical, WifiOff, Smartphone, QrCode, XCircle, Info, CameraOff } from 'lucide-react';
+import { Search, Loader2, Settings, Save, Power, Plug, CheckCircle2, Pin, PinOff, GripVertical, WifiOff, Smartphone, QrCode, XCircle, Info, CameraOff, Cpu, MemoryStick } from 'lucide-react';
 // Drag and Drop library
 import { DragDropContext, Droppable, Draggable, type DropResult } from 'react-beautiful-dnd';
 // Custom hook for showing toast notifications.
@@ -41,6 +41,7 @@ import {
   DialogDescription
 } from "@/components/ui/dialog";
 import { Label } from './ui/label';
+import { Progress } from './ui/progress';
 
 /**
  * AppCard Component
@@ -170,6 +171,7 @@ export default function AppLauncher() {
   const [openGroups, setOpenGroups] = useState<string[]>([]);
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [systemStats, setSystemStats] = useState<{cpu: number, ram: number} | null>(null);
 
   
   const { toast } = useToast();
@@ -233,6 +235,34 @@ export default function AppLauncher() {
   useEffect(() => {
     fetchAndSetApps(localServerUrl);
   }, [localServerUrl, fetchAndSetApps]);
+
+  // Effect for fetching system stats
+  useEffect(() => {
+    if (!localServerUrl) {
+      setSystemStats(null);
+      return;
+    }
+
+    const fetchStats = async () => {
+      try {
+        const response = await fetch(`${localServerUrl}/stats`, { cache: 'no-store' });
+        if (response.ok) {
+          const data = await response.json();
+          setSystemStats(data);
+        } else {
+          setSystemStats(null);
+        }
+      } catch (error) {
+        console.error("Could not fetch system stats", error);
+        setSystemStats(null);
+      }
+    };
+
+    fetchStats(); // Fetch immediately on connect
+    const interval = setInterval(fetchStats, 3000); // Then fetch every 3 seconds
+
+    return () => clearInterval(interval);
+  }, [localServerUrl]);
 
   const allApps = useMemo(() => Object.values(appsByGroup).flat(), [appsByGroup]);
 
@@ -542,6 +572,29 @@ export default function AppLauncher() {
             </CardContent>
          </Card>
       )}
+
+      {/* System Stats Section */}
+      {isConnected && systemStats && (
+        <Card>
+          <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex w-full flex-col gap-2">
+                <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-2 font-medium text-muted-foreground"><Cpu className="h-5 w-5" /> CPU</div>
+                    <span className="font-mono text-foreground">{systemStats.cpu.toFixed(1)}%</span>
+                </div>
+                <Progress value={systemStats.cpu} />
+            </div>
+             <div className="flex w-full flex-col gap-2">
+                <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-2 font-medium text-muted-foreground"><MemoryStick className="h-5 w-5" /> RAM</div>
+                    <span className="font-mono text-foreground">{systemStats.ram.toFixed(1)}%</span>
+                </div>
+                <Progress value={systemStats.ram} />
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
 
       {/* Search Bar */}
       <div className="relative">

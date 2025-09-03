@@ -3,6 +3,7 @@
 # It listens for requests from the Remote Commander web app to:
 # 1. Get the list of available applications.
 # 2. Launch a specified application.
+# 3. Get system stats (CPU/RAM).
 
 import subprocess
 import sys
@@ -13,7 +14,8 @@ def install_dependencies():
     """Checks for required packages and installs them if missing."""
     required_packages = {
         "qrcode": "qrcode[pil]", # qrcode with Pillow support
-        "netifaces": "netifaces"
+        "netifaces": "netifaces",
+        "psutil": "psutil" # For system stats
     }
     
     for package_name, install_name in required_packages.items():
@@ -45,6 +47,7 @@ import platform
 import socket
 import qrcode
 import netifaces
+import psutil
 
 # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
 # --- 1. CONFIGURE YOUR APPS HERE ---
@@ -140,6 +143,15 @@ class MyHttpRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.end_headers()
             # The web app expects a flat structure for displaying apps, so we send the configured APPS object directly.
             response = {"apps": APPS}
+            self.wfile.write(json.dumps(response).encode('utf-8'))
+        elif self.path == '/stats':
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            cpu_percent = psutil.cpu_percent(interval=None)
+            ram_percent = psutil.virtual_memory().percent
+            response = {"cpu": cpu_percent, "ram": ram_percent}
             self.wfile.write(json.dumps(response).encode('utf-8'))
         else:
             self.send_response(404)
