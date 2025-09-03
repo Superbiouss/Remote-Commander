@@ -11,7 +11,7 @@ import { useFormStatus } from 'react-dom';
 // Framer Motion for animations.
 import { motion, AnimatePresence } from 'framer-motion';
 // Icons from the lucide-react library.
-import { Search, Loader2, Settings, Save, Power, Plug, CheckCircle2, Pin, PinOff, GripVertical, WifiOff, Smartphone, QrCode } from 'lucide-react';
+import { Search, Loader2, Settings, Save, Power, Plug, CheckCircle2, Pin, PinOff, GripVertical, WifiOff, Smartphone, QrCode, XCircle } from 'lucide-react';
 // Drag and Drop library
 import { DragDropContext, Droppable, Draggable, type DropResult } from 'react-beautiful-dnd';
 // Custom hook for showing toast notifications.
@@ -23,6 +23,7 @@ import { ICONS, getIcon, type App as AppType } from '@/lib/mock-data';
 // Server actions imported from the actions file.
 import { launchApp, FormState, getAppsFromPC, testConnection } from '@/app/actions';
 // UI components from the shadcn/ui library.
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -49,14 +50,20 @@ const AppCard = ({ app, localServerUrl, isPinned, onPinToggle, index }: { app: A
   const initialState: FormState = { success: false, message: "" };
   const [state, formAction] = useActionState(launchApp, initialState);
   const { toast } = useToast();
+  const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
 
   useEffect(() => {
     if (state.message) {
+      const isSuccess = state.success;
       toast({
-        title: state.success ? 'Success' : 'Error',
+        title: isSuccess ? 'Success' : 'Error',
         description: state.message,
-        variant: state.success ? 'default' : 'destructive',
+        variant: isSuccess ? 'default' : 'destructive',
       });
+      setStatus(isSuccess ? 'success' : 'error');
+      // Reset the icon after a short delay
+      const timer = setTimeout(() => setStatus('idle'), 2000);
+      return () => clearTimeout(timer);
     }
   }, [state, toast]);
   
@@ -83,7 +90,7 @@ const AppCard = ({ app, localServerUrl, isPinned, onPinToggle, index }: { app: A
             <form action={formAction}>
                 <input type="hidden" name="appName" value={app.name} />
                 <input type="hidden" name="localServerUrl" value={localServerUrl} />
-                <LaunchButton icon={Icon} appName={app.name}/>
+                <LaunchButton icon={Icon} appName={app.name} status={status} />
             </form>
           </Card>
           <Button
@@ -107,23 +114,36 @@ const AppCard = ({ app, localServerUrl, isPinned, onPinToggle, index }: { app: A
  * A dedicated component for the button inside the AppCard.
  * It uses the useFormStatus hook to show a loading spinner while the form (launch action) is pending.
  */
-function LaunchButton({ icon: Icon, appName }: { icon: React.ElementType, appName: string }) {
+function LaunchButton({ icon: Icon, appName, status }: { icon: React.ElementType, appName: string, status: 'idle' | 'success' | 'error' }) {
     const { pending } = useFormStatus();
+
+    const renderIcon = () => {
+        if(pending) return <Loader2 className="h-8 w-8 animate-spin text-primary sm:h-10 sm:w-10" />;
+        if(status === 'success') return <CheckCircle2 className="h-8 w-8 text-green-500 sm:h-10 sm:w-10" />;
+        if(status === 'error') return <XCircle className="h-8 w-8 text-destructive sm:h-10 sm:w-10" />;
+        return <Icon className="h-8 w-8 text-primary sm:h-10 sm:w-10" />
+    }
 
     return (
         <Button
           type="submit"
           variant="ghost"
           className="h-full w-full p-0"
-          disabled={pending}
-          aria-disabled={pending}
+          disabled={pending || status !== 'idle'}
+          aria-disabled={pending || status !== 'idle'}
         >
           <CardContent className="flex h-full w-full flex-col items-center justify-center gap-2 p-4 sm:gap-4 sm:p-6">
-            {pending ? (
-              <Loader2 className="h-8 w-8 animate-spin text-primary sm:h-10 sm:w-10" />
-            ) : (
-              <Icon className="h-8 w-8 text-primary sm:h-10 sm:w-10" />
-            )}
+            <AnimatePresence mode="popLayout">
+                <motion.div
+                    key={status}
+                    initial={{ scale: 0.5, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.5, opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                >
+                    {renderIcon()}
+                </motion.div>
+            </AnimatePresence>
             <span className="text-center text-xs font-medium text-card-foreground sm:text-sm">
               {appName}
             </span>
@@ -137,7 +157,7 @@ function LaunchButton({ icon: Icon, appName }: { icon: React.ElementType, appNam
  * This is the main default export of the file, containing the entire page logic.
  */
 export default function AppLauncher() {
-  const [apps, setApps] = useState<AppType[]>([]);
+  const [appsByGroup, setAppsByGroup] = useState<Record<string, AppType[]>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [localServerUrl, setLocalServerUrl] = useState('');
@@ -145,6 +165,7 @@ export default function AppLauncher() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
   const [pinnedApps, setPinnedApps] = useState<string[]>([]);
+  const [openGroups, setOpenGroups] = useState<string[]>([]);
   
   const { toast } = useToast();
 
@@ -172,23 +193,34 @@ export default function AppLauncher() {
 
   const fetchAndSetApps = useCallback(async (url: string) => {
     setIsLoading(true);
-    const appNames = await getAppsFromPC(url);
-    if (appNames.length > 0) {
+    const fetchedAppsByGroup = await getAppsFromPC(url);
+
+    if (Object.keys(fetchedAppsByGroup).length > 0) {
       const allIcons = Object.keys(ICONS);
-      const fetchedApps: AppType[] = appNames.map((name, index) => ({
-        name,
-        icon: allIcons.find(iconName => name.toLowerCase().includes(iconName)) as keyof typeof ICONS || allIcons[index % allIcons.length]
-      }));
-      setApps(fetchedApps);
+      const processedApps: Record<string, AppType[]> = {};
+      let iconIndex = 0;
+      
+      for(const group in fetchedAppsByGroup) {
+          processedApps[group] = fetchedAppsByGroup[group].map(app => {
+              const iconName = app.icon || allIcons.find(iconName => app.name.toLowerCase().includes(iconName)) || allIcons[iconIndex % allIcons.length];
+              iconIndex++;
+              return { ...app, icon: iconName as keyof typeof ICONS };
+          });
+      }
+
+      setAppsByGroup(processedApps);
+      // Automatically open all groups by default
+      setOpenGroups(Object.keys(processedApps));
+
     } else if (url) {
         toast({
             title: 'Could not fetch apps',
             description: 'Could not fetch apps from your PC. Make sure the server is running and the URL is correct.',
             variant: 'destructive',
         });
-        setApps([]);
+        setAppsByGroup({});
     } else {
-        setApps([]);
+        setAppsByGroup({});
     }
     setIsLoading(false);
   }, [toast]);
@@ -197,11 +229,13 @@ export default function AppLauncher() {
     fetchAndSetApps(localServerUrl);
   }, [localServerUrl, fetchAndSetApps]);
 
+  const allApps = useMemo(() => Object.values(appsByGroup).flat(), [appsByGroup]);
+
   const sortedAndFilteredApps = useMemo(() => {
     const filtered = searchQuery
-        ? apps.filter(app => app.name.toLowerCase().includes(searchQuery.toLowerCase()))
-        : apps;
-        
+      ? allApps.filter(app => app.name.toLowerCase().includes(searchQuery.toLowerCase()))
+      : allApps;
+    
     return filtered.sort((a, b) => {
       const aIsPinned = pinnedApps.includes(a.name);
       const bIsPinned = pinnedApps.includes(b.name);
@@ -213,7 +247,7 @@ export default function AppLauncher() {
       }
       return a.name.localeCompare(b.name);
     });
-  }, [apps, pinnedApps, searchQuery]);
+  }, [allApps, pinnedApps, searchQuery]);
   
   const saveUrl = (url: string) => {
     localStorage.setItem('localServerUrl', url);
@@ -266,21 +300,22 @@ export default function AppLauncher() {
     localStorage.removeItem('localServerUrl');
     setLocalServerUrl('');
     setTempServerUrl('');
-    setApps([]);
+    setAppsByGroup({});
     toast({ title: 'Disconnected', description: 'You have been disconnected from the PC server.' });
     setIsSettingsOpen(false);
   }
 
   const onDragEnd = (result: DropResult) => {
-    const { destination, source, draggableId } = result;
+    const { destination, source } = result;
     
-    if (!destination || (destination.droppableId === source.droppableId && destination.index === source.index)) {
+    // We only care about drags within the "Pinned" group
+    if (!destination || destination.droppableId !== 'Pinned' || source.droppableId !== 'Pinned') {
       return;
     }
     
     const newPinnedApps = Array.from(pinnedApps);
-    newPinnedApps.splice(source.index, 1);
-    newPinnedApps.splice(destination.index, 0, draggableId);
+    const [reorderedItem] = newPinnedApps.splice(source.index, 1);
+    newPinnedApps.splice(destination.index, 0, reorderedItem);
     
     setPinnedApps(newPinnedApps);
     localStorage.setItem('pinnedApps', JSON.stringify(newPinnedApps));
@@ -288,6 +323,35 @@ export default function AppLauncher() {
 
 
   const isConnected = useMemo(() => !!localServerUrl, [localServerUrl]);
+
+  const displayedGroups = useMemo(() => {
+    const groups: Record<string, AppType[]> = {};
+
+    const pinned = allApps.filter(app => pinnedApps.includes(app.name))
+                          .sort((a,b) => pinnedApps.indexOf(a.name) - pinnedApps.indexOf(b.name));
+    
+    if(pinned.length > 0) {
+      groups['Pinned'] = pinned;
+    }
+
+    for (const groupName in appsByGroup) {
+      const unpinnedApps = appsByGroup[groupName].filter(app => !pinnedApps.includes(app.name));
+      if(unpinnedApps.length > 0) {
+        if (!groups[groupName]) {
+            groups[groupName] = [];
+        }
+        groups[groupName].push(...unpinnedApps);
+        groups[groupName].sort((a, b) => a.name.localeCompare(b.name));
+      }
+    }
+    return groups;
+  }, [allApps, appsByGroup, pinnedApps]);
+
+  const searchResults = useMemo(() => {
+    if (!searchQuery) return null;
+    return sortedAndFilteredApps;
+  }, [searchQuery, sortedAndFilteredApps]);
+
 
   return (
     <div className="container mx-auto flex max-w-4xl flex-col gap-4 px-4 py-4 sm:gap-8 sm:py-8">
@@ -343,7 +407,7 @@ export default function AppLauncher() {
                     </CardContent>
                 </Card>
               </div>
-              <DialogFooter className="grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:justify-between">
+              <DialogFooter className="grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:justify-between sm:w-full">
                  <div className="col-span-2 flex justify-start sm:col-auto">
                     {isConnected && (
                       <Button variant="destructive" onClick={handleDisconnect} className="w-full sm:w-auto">
@@ -351,7 +415,7 @@ export default function AppLauncher() {
                       </Button>
                     )}
                  </div>
-                 <div className="col-span-2 grid grid-cols-3 gap-2 sm:flex sm:items-center">
+                 <div className="col-span-2 grid grid-cols-3 gap-2 sm:flex sm:items-center sm:justify-end">
                     <Button type="button" variant="outline" onClick={() => setIsQRScannerOpen(true)} className="col-span-1"><QrCode/></Button>
                     <DialogClose asChild className="col-span-1">
                       <Button type="button" variant="secondary">Close</Button>
@@ -433,52 +497,96 @@ export default function AppLauncher() {
       {/* Main Content Area (App Grid or Loading/Empty State) */}
       <main>
         {isLoading ? (
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-            {Array.from({ length: 10 }).map((_, i) => (
-              <Skeleton key={i} className="aspect-square w-full rounded-xl" />
+          <div className="space-y-4">
+             {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i}>
+                    <Skeleton className="h-8 w-1/3 rounded-lg mb-4" />
+                    <div className="grid grid-cols-2 gap-4 landscape:grid-cols-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                        {Array.from({ length: 4 }).map((_, j) => (
+                        <Skeleton key={j} className="aspect-square w-full rounded-xl" />
+                        ))}
+                    </div>
+                </div>
             ))}
           </div>
-        ) : (
-          <AnimatePresence>
-            {sortedAndFilteredApps.length > 0 ? (
-              <DragDropContext onDragEnd={onDragEnd}>
-                <Droppable droppableId="app-grid">
-                  {(provided) => (
-                    <motion.div
-                      ref={provided.innerRef}
-                      {...provided.droppableProps}
-                      layout
-                      className="grid grid-cols-2 gap-4 landscape:grid-cols-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
+        ) : searchResults ? (
+            // Search results view
+            <AnimatePresence>
+                <motion.div layout className="grid grid-cols-2 gap-4 landscape:grid-cols-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                    {searchResults.map((app, index) => (
+                    <AppCard 
+                        key={app.name} 
+                        app={app} 
+                        localServerUrl={localServerUrl} 
+                        isPinned={pinnedApps.includes(app.name)} 
+                        onPinToggle={togglePin}
+                        index={index} // Index here doesn't matter much for drag-drop as search isn't draggable
+                    />
+                    ))}
+                </motion.div>
+                {searchResults.length === 0 && (
+                     <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="flex flex-col items-center justify-center gap-4 py-16 text-center"
                     >
-                      {sortedAndFilteredApps.map((app, index) => (
-                        <AppCard 
-                          key={app.name} 
-                          app={app} 
-                          localServerUrl={localServerUrl} 
-                          isPinned={pinnedApps.includes(app.name)} 
-                          onPinToggle={togglePin}
-                          index={index}
-                        />
-                      ))}
-                      {provided.placeholder}
+                        <Search className="h-16 w-16 text-muted-foreground/50" />
+                        <h2 className="text-xl font-semibold">No Applications Found</h2>
+                        <p className="text-muted-foreground">
+                           Your search for "{searchQuery}" did not match any applications.
+                        </p>
                     </motion.div>
-                  )}
-                </Droppable>
-              </DragDropContext>
-            ) : (
-              <motion.div
+                )}
+            </AnimatePresence>
+        ) : Object.keys(displayedGroups).length > 0 ? (
+            // Grouped view
+            <DragDropContext onDragEnd={onDragEnd}>
+              <Accordion type="multiple" value={openGroups} onValueChange={setOpenGroups} className="w-full space-y-4">
+                {Object.entries(displayedGroups).map(([groupName, appsInGroup]) => (
+                   <AccordionItem value={groupName} key={groupName} className="border-none">
+                     <AccordionTrigger className="rounded-lg bg-muted/50 px-4 py-2 text-base font-semibold hover:no-underline">
+                        {groupName}
+                     </AccordionTrigger>
+                     <AccordionContent className="pt-4">
+                       <Droppable droppableId={groupName} isDropDisabled={groupName !== 'Pinned'}>
+                        {(provided) => (
+                            <motion.div
+                            ref={provided.innerRef}
+                            {...provided.droppableProps}
+                            layout
+                            className="grid grid-cols-2 gap-4 landscape:grid-cols-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
+                            >
+                            {appsInGroup.map((app, index) => (
+                                <AppCard 
+                                key={app.name} 
+                                app={app} 
+                                localServerUrl={localServerUrl} 
+                                isPinned={pinnedApps.includes(app.name)} 
+                                onPinToggle={togglePin}
+                                index={index}
+                                />
+                            ))}
+                            {provided.placeholder}
+                            </motion.div>
+                        )}
+                        </Droppable>
+                     </AccordionContent>
+                   </AccordionItem>
+                ))}
+              </Accordion>
+            </DragDropContext>
+        ) : (
+            <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="flex flex-col items-center justify-center gap-4 py-16 text-center"
-              >
+            >
                 <Search className="h-16 w-16 text-muted-foreground/50" />
                 <h2 className="text-xl font-semibold">No Applications Found</h2>
                 <p className="text-muted-foreground">
-                    {isConnected ? `Your search for "${searchQuery}" did not match any applications.` : "Connect to your PC to see your applications."}
+                    {isConnected ? `No applications configured on your PC.` : "Connect to your PC to see your applications."}
                 </p>
-              </motion.div>
-            )}
-          </AnimatePresence>
+            </motion.div>
         )}
       </main>
     </div>

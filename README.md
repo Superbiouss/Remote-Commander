@@ -9,7 +9,10 @@ Turn your phone into a remote control for your computer! Remote Commander lets y
 *   **Launch Apps Instantly:** Start any program on your computer from your phone's web browser.
 *   **Super Simple Connection:** Just scan a QR code from your computer screen to connect your phone. No typing IP addresses!
 *   **Works with Wi-Fi or Hotspot:** Use your home Wi-Fi or your phone's personal hotspot to connect.
-*   **Organize Your Favorites:** Pin your most-used apps to the top for even quicker access and re-order them with drag and drop.
+*   **Organize Your Favorites:** Pin your most-used apps to the top for even quicker access.
+*   **Drag-and-Drop Reordering:** Easily reorder your pinned apps exactly how you want them.
+*   **App Groups:** Organize your applications into collapsible categories like "Work," "Gaming," or "Utilities."
+*   **Custom Icons:** Choose a specific icon for each app to personalize your remote.
 *   **Quick Search:** Instantly find the app you're looking for.
 *   **Looks Great:** A clean, modern design that even includes a dark mode.
 
@@ -48,24 +51,34 @@ You can decide which apps appear in the remote.
 
 1.  Open the `local_server.py` file you just saved with a text editor.
 2.  Find the section labeled `--- 1. CONFIGURE YOUR APPS HERE ---`. You can change the list to whatever you want!
-    *   The **name in quotes** is what you'll see on your phone (e.g., `"Google Chrome"`).
-    *   The **command** is what your computer uses to open the program.
+    *   You can create **groups** (like `"Work"`, `"Gaming"`).
+    *   The **`name`** is what you'll see on your phone (e.g., `"Google Chrome"`).
+    *   The **`command`** is what your computer uses to open the program.
+    *   The **`icon`** is the picture for the app (see the list of available icons below).
 
     *Example for Windows:*
     ```python
     APPS = {
-        "Google Chrome": "start chrome",
-        "VS Code": "code",
-        "Notepad": "notepad.exe",
+        "Work": [
+            {"name": "VS Code", "command": "code", "icon": "code"},
+            {"name": "Notepad", "command": "notepad.exe", "icon": "fileText"},
+        ],
+        "Browser": [
+            {"name": "Google Chrome", "command": "start chrome", "icon": "chrome"},
+        ]
     }
     ```
 
     *Example for macOS:*
     ```python
     APPS = {
-        "Google Chrome": "open -a 'Google Chrome'",
-        "VS Code": "open -a 'Visual Studio Code'",
-        "Terminal": "open -a Terminal",
+        "Work": [
+            {"name": "VS Code", "command": "open -a 'Visual Studio Code'", "icon": "code"},
+            {"name": "Terminal", "command": "open -a Terminal", "icon": "terminal"},
+        ],
+        "General": [
+            {"name": "Calculator", "command": "open -a Calculator", "icon": "calculator"}
+        ]
     }
     ```
 
@@ -117,3 +130,25 @@ If you're out and about, you can use your phone's hotspot instead of Wi-Fi.
 2.  **Connect Laptop:** Connect your computer to your phone's hotspot network.
 3.  **Run Server:** Run the `local_server.py` script on your computer. It will generate a *new* QR code for this new network connection.
 4.  **Scan:** Use the app on your phone to scan the new QR code.
+
+---
+
+### Available Icons
+
+When configuring your apps in `local_server.py`, you can use any of the following values for the `icon` field:
+
+- `code`
+- `terminal`
+- `chrome`
+- `figma`
+- `bot`
+- `fileText`
+- `gitBranch`
+- `mic`
+- `music`
+- `camera`
+- `calculator`
+- `gamepad2`
+- `folder`
+- `image`
+- `mail`

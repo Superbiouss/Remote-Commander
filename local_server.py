@@ -51,39 +51,62 @@ import netifaces
 # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
 #
 # Add the applications you want to launch from your phone.
+# You can group apps by categories. Apps without a group will appear under "General".
 #
-# - The KEY is the name that will show on your phone (e.g., "Google Chrome").
-# - The VALUE is the exact command your computer uses to open the app.
+# You can also specify an icon for each app. A list of available icons can be
+# found in the project's README file. If no icon is specified, one will be
+# chosen automatically.
 #
 # --- EXAMPLES (edit or replace these with your own) ---
 
 # Example for WINDOWS
 if platform.system() == "Windows":
     APPS = {
-        "Google Chrome": "start chrome",
-        "VS Code": "code",
-        "Notepad": "notepad.exe",
-        "Calculator": "calc.exe",
+        "Work": [
+            {"name": "VS Code", "command": "code", "icon": "code"},
+            {"name": "Notepad", "command": "notepad.exe", "icon": "fileText"},
+        ],
+        "Browser": [
+            {"name": "Google Chrome", "command": "start chrome", "icon": "chrome"},
+        ],
+        "General": [
+            {"name": "Calculator", "command": "calc.exe", "icon": "calculator"}
+        ]
     }
 # Example for MACOS
 elif platform.system() == "Darwin":
-    APPS = {
-        "Google Chrome": "open -a 'Google Chrome'",
-        "VS Code": "open -a 'Visual Studio Code'",
-        "Terminal": "open -a Terminal",
-        "Calculator": "open -a Calculator",
+     APPS = {
+        "Work": [
+            {"name": "VS Code", "command": "open -a 'Visual Studio Code'", "icon": "code"},
+            {"name": "Terminal", "command": "open -a Terminal", "icon": "terminal"},
+        ],
+        "Browser": [
+            {"name": "Google Chrome", "command": "open -a 'Google Chrome'", "icon": "chrome"},
+        ],
+        "General": [
+            {"name": "Calculator", "command": "open -a Calculator", "icon": "calculator"}
+        ]
     }
 # Example for LINUX
 else:
     APPS = {
-        "Text Editor": "gedit",        # Or 'kate', 'mousepad' etc.
-        "Terminal": "gnome-terminal",  # Or 'konsole', 'xterm' etc.
+        "General": [
+            {"name": "Text Editor", "command": "gedit", "icon": "fileText"},
+            {"name": "Terminal", "command": "gnome-terminal", "icon": "terminal"},
+        ]
     }
 # --- END OF CONFIGURATION ---
 # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
 
-
 PORT = 8000
+
+# Helper to find the command for a given app name
+def get_app_command(app_name):
+    for group in APPS.values():
+        for app in group:
+            if app['name'] == app_name:
+                return app['command']
+    return None
 
 class MyHttpRequestHandler(http.server.SimpleHTTPRequestHandler):
     def do_OPTIONS(self):
@@ -99,7 +122,8 @@ class MyHttpRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.send_header('Content-type', 'application/json')
             self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
-            response = {"apps": list(APPS.keys())}
+            # The web app expects a flat structure for displaying apps, so we send the configured APPS object directly.
+            response = {"apps": APPS}
             self.wfile.write(json.dumps(response).encode('utf-8'))
         else:
             self.send_response(404)
@@ -114,8 +138,9 @@ class MyHttpRequestHandler(http.server.SimpleHTTPRequestHandler):
             body = json.loads(post_data.decode('utf-8'))
             app_to_launch = body.get('app')
 
-            if app_to_launch in APPS:
-                command = APPS[app_to_launch]
+            command = get_app_command(app_to_launch)
+
+            if command:
                 print(f"Executing command: {command}")
                 
                 # Use Popen to run the command in the background without blocking
@@ -204,7 +229,10 @@ with socketserver.TCPServer(("", PORT), Handler) as httpd:
     print("\n" + "="*50)
 
     print("\nConfigured Apps (from local_server.py):")
-    for app_name in APPS:
-        print(f"- {app_name}")
+    for group_name, apps_in_group in APPS.items():
+        print(f"\n--- {group_name} ---")
+        for app in apps_in_group:
+            print(f"- {app['name']}")
+
     print("\nPress Ctrl+C to stop the server.")
     httpd.serve_forever()

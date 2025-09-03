@@ -1,24 +1,11 @@
 import type { LucideIcon } from 'lucide-react';
-import { Code, Terminal, Chrome, Figma, Bot, FileText, GitBranch, Mic, Music, Camera, Pin, PinOff, GripVertical } from 'lucide-react';
+import { Code, Terminal, Chrome, Figma, Bot, FileText, GitBranch, Mic, Music, Camera, Pin, PinOff, GripVertical, Calculator, Gamepad2, Folder, Image, Mail } from 'lucide-react';
 
 export interface App {
   name: string;
   icon: keyof typeof ICONS;
+  command?: string; // command is optional on the client
 }
-
-// This is now a fallback or for development without the local server.
-export const APPS: App[] = [
-  { name: 'VS Code', icon: 'code' },
-  { name: 'Terminal', icon: 'terminal' },
-  { name: 'Google Chrome', icon: 'chrome' },
-  { name: 'Figma', icon: 'figma' },
-  { name: 'ChatGPT', icon: 'bot' },
-  { name: 'Notion', icon: 'fileText' },
-  { name: 'GitKraken', icon: 'gitBranch' },
-  { name: 'Spotify', icon: 'music' },
-  { name: 'Discord', icon: 'mic' },
-  { name: 'OBS Studio', icon: 'camera' },
-];
 
 export const ICONS = {
     code: Code,
@@ -34,10 +21,19 @@ export const ICONS = {
     pin: Pin,
     pinoff: PinOff,
     gripvertical: GripVertical,
+    calculator: Calculator,
+    gamepad2: Gamepad2,
+    folder: Folder,
+    image: Image,
+    mail: Mail,
+    // Add other relevant icons here
 } as const;
 
 export type IconName = keyof typeof ICONS;
 
-export const getIcon = (name: IconName): LucideIcon => {
-    return ICONS[name] || Code;
+export const getIcon = (name: IconName | undefined): LucideIcon => {
+    if (name && ICONS[name]) {
+        return ICONS[name];
+    }
+    return Code; // Default icon
 };

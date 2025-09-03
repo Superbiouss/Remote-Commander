@@ -9,6 +9,8 @@
  */
 "use server";
 
+import type { App } from "@/lib/mock-data";
+
 // Define a TypeScript type for the form state, used for handling form submissions with React's useActionState hook.
 export type FormState = {
   success: boolean;
@@ -68,8 +70,8 @@ export async function launchApp(
  * @param serverUrl - The URL of the local PC server.
  * @returns A promise that resolves to an array of application names. Returns an empty array on failure.
  */
-export async function getAppsFromPC(serverUrl: string): Promise<string[]> {
-    if(!serverUrl) return [];
+export async function getAppsFromPC(serverUrl: string): Promise<Record<string, App[]>> {
+    if(!serverUrl) return {};
     try {
         const response = await fetch(`${serverUrl}/apps`, {
             method: 'GET',
@@ -77,13 +79,13 @@ export async function getAppsFromPC(serverUrl: string): Promise<string[]> {
         });
         if(!response.ok) {
             console.error('Failed to fetch apps from PC');
-            return [];
+            return {};
         }
         const data = await response.json();
-        return data.apps || [];
+        return data.apps || {};
     } catch(e) {
         console.error('Error fetching apps from PC:', e);
-        return [];
+        return {};
     }
 }
 
