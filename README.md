@@ -42,20 +42,7 @@ First, you need to save the server code.
 2.  Copy all the code from the `local_server.py` file in this project.
 3.  Paste it into your text editor and save the file as `local_server.py` in a folder you can easily find, like your Desktop.
 
-#### 2. Install Some Python Helpers
-
-The server needs a few tools to do its job (like generating the QR code). You can install them with a single command.
-
-1.  Open your computer's command line tool:
-    *   **Windows:** Press the Windows key, type `cmd`, and press Enter.
-    *   **Mac:** Open Launchpad or Spotlight search, type `Terminal`, and press Enter.
-2.  Copy and paste the following command into the terminal, then press Enter:
-    ```bash
-    pip install qrcode Pillow netifaces
-    ```
-    *(This uses `pip`, Python's installer, to get the tools we need.)*
-
-#### 3. Choose Your Apps (Optional)
+#### 2. Choose Your Apps (Optional)
 
 You can decide which apps appear in the remote.
 
@@ -82,16 +69,20 @@ You can decide which apps appear in the remote.
     }
     ```
 
-#### 4. Run the Helper Program
+#### 3. Run the Helper Program
 
 Now it's time to start the server!
 
-1.  In the same terminal you used before, navigate to the folder where you saved the file. For example, if it's on your Desktop, you can type `cd Desktop` and press Enter.
-2.  Run the server by typing this command and pressing Enter:
+1.  Open your computer's command line tool:
+    *   **Windows:** Press the Windows key, type `cmd`, and press Enter.
+    *   **Mac:** Open Launchpad or Spotlight search, type `Terminal`, and press Enter.
+2.  In the terminal, navigate to the folder where you saved the file. For example, if it's on your Desktop, you can type `cd Desktop` and press Enter.
+3.  Run the server by typing this command and pressing Enter:
     ```bash
     python local_server.py
     ```
-3.  Success! Your terminal will now show a big **QR code**. Keep this window open.
+4.  The first time you run this, it will automatically download and install the tools it needs.
+5.  Success! Your terminal will now show a big **QR code**. Keep this window open.
 
 ### Part 2: On Your Phone
 

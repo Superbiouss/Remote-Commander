@@ -4,12 +4,44 @@
 # 1. Get the list of available applications.
 # 2. Launch a specified application.
 
+import subprocess
+import sys
+import importlib
+
+# --- Dependency Auto-Installer ---
+def install_dependencies():
+    """Checks for required packages and installs them if missing."""
+    required_packages = {
+        "qrcode": "qrcode[pil]", # qrcode with Pillow support
+        "netifaces": "netifaces"
+    }
+    
+    for package_name, install_name in required_packages.items():
+        try:
+            importlib.import_module(package_name)
+            print(f"'{package_name}' is already installed.")
+        except ImportError:
+            print(f"'{package_name}' not found. Installing...")
+            try:
+                subprocess.check_call([sys.executable, "-m", "pip", "install", install_name])
+                print(f"Successfully installed '{package_name}'.")
+            except subprocess.CalledProcessError as e:
+                print(f"ERROR: Failed to install '{package_name}'.")
+                print("Please try installing it manually by running:")
+                print(f"pip install {install_name}")
+                sys.exit(1)
+
+# Run the dependency check
+install_dependencies()
+print("\nAll dependencies are satisfied.\n")
+# --- End of Dependency Installer ---
+
+
 import http.server
 import socketserver
 import json
 import os
 import platform
-import subprocess
 import socket
 import qrcode
 import netifaces
@@ -29,12 +61,16 @@ if platform.system() == "Windows":
         "Notepad": "notepad.exe",
         "Calculator": "calc.exe",
         "Command Prompt": "cmd.exe",
+        "Google Chrome": "start chrome",
+        "VS Code": "code",
     }
 elif platform.system() == "Darwin": # macOS
     APPS = {
         "TextEdit": "open -a TextEdit",
         "Calculator": "open -a Calculator",
         "Terminal": "open -a Terminal",
+        "Google Chrome": "open -a 'Google Chrome'",
+        "VS Code": "open -a 'Visual Studio Code'",
     }
 else: # Linux and others
     APPS = {
