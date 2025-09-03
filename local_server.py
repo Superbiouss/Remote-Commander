@@ -47,37 +47,41 @@ import qrcode
 import netifaces
 
 # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
-# --- CONFIGURE YOUR APPS HERE ---
+# --- 1. CONFIGURE YOUR APPS HERE ---
 # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
 #
-# Add the applications you want to be able to launch.
+# Add the applications you want to launch from your phone.
 #
-# The KEY is the name that will appear in the web app (e.g., "Google Chrome").
-# The VALUE is the command to run the application from your terminal.
+# - The KEY is the name that will show on your phone (e.g., "Google Chrome").
+# - The VALUE is the exact command your computer uses to open the app.
+#
+# --- EXAMPLES (edit or replace these with your own) ---
 
-# --- DEFAULT CONFIGURATION (edit this) ---
+# Example for WINDOWS
 if platform.system() == "Windows":
     APPS = {
-        "Notepad": "notepad.exe",
-        "Calculator": "calc.exe",
-        "Command Prompt": "cmd.exe",
         "Google Chrome": "start chrome",
         "VS Code": "code",
+        "Notepad": "notepad.exe",
+        "Calculator": "calc.exe",
     }
-elif platform.system() == "Darwin": # macOS
+# Example for MACOS
+elif platform.system() == "Darwin":
     APPS = {
-        "TextEdit": "open -a TextEdit",
-        "Calculator": "open -a Calculator",
-        "Terminal": "open -a Terminal",
         "Google Chrome": "open -a 'Google Chrome'",
         "VS Code": "open -a 'Visual Studio Code'",
+        "Terminal": "open -a Terminal",
+        "Calculator": "open -a Calculator",
     }
-else: # Linux and others
+# Example for LINUX
+else:
     APPS = {
-        "Text Editor": "gedit", # Or your default text editor like 'kate', 'mousepad'
-        "Terminal": "gnome-terminal", # Or 'konsole', 'xterm'
+        "Text Editor": "gedit",        # Or 'kate', 'mousepad' etc.
+        "Terminal": "gnome-terminal",  # Or 'konsole', 'xterm' etc.
     }
 # --- END OF CONFIGURATION ---
+# --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+
 
 PORT = 8000
 
@@ -114,6 +118,7 @@ class MyHttpRequestHandler(http.server.SimpleHTTPRequestHandler):
                 command = APPS[app_to_launch]
                 print(f"Executing command: {command}")
                 
+                # Use Popen to run the command in the background without blocking
                 subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
                 
                 self.send_response(200)
@@ -140,12 +145,13 @@ class MyHttpRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.wfile.write(json.dumps(response).encode('utf-8'))
 
 def get_local_ip():
+    """Finds the most likely local IP address of the machine."""
     try:
         # Get a list of all network interfaces
         interfaces = netifaces.interfaces()
         for interface in interfaces:
             # Skip loopback and other non-relevant interfaces
-            if interface.startswith('lo') or 'Loopback' in interface:
+            if interface.startswith('lo') or 'Loopback' in interface or 'utun' in interface:
                 continue
             
             addrs = netifaces.ifaddresses(interface)
@@ -157,11 +163,13 @@ def get_local_ip():
                 if ip_address and not ip_address.startswith('127.'):
                     return ip_address
     except Exception as e:
-        print(f"Could not automatically find IP address: {e}")
+        print(f"Could not automatically find IP address using 'netifaces': {e}")
 
     # Fallback method if netifaces fails
+    print("Using fallback method to find IP address.")
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        # Doesn't have to be reachable
         s.connect(("8.8.8.8", 80))
         ip = s.getsockname()[0]
         s.close()
@@ -195,7 +203,7 @@ with socketserver.TCPServer(("", PORT), Handler) as httpd:
     qr.print_tty()
     print("\n" + "="*50)
 
-    print("\nConfigured Apps:")
+    print("\nConfigured Apps (from local_server.py):")
     for app_name in APPS:
         print(f"- {app_name}")
     print("\nPress Ctrl+C to stop the server.")

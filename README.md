@@ -9,7 +9,7 @@ Turn your phone into a remote control for your computer! Remote Commander lets y
 *   **Launch Apps Instantly:** Start any program on your computer from your phone's web browser.
 *   **Super Simple Connection:** Just scan a QR code from your computer screen to connect your phone. No typing IP addresses!
 *   **Works with Wi-Fi or Hotspot:** Use your home Wi-Fi or your phone's personal hotspot to connect.
-*   **Organize Your Favorites:** Pin your most-used apps to the top for even quicker access.
+*   **Organize Your Favorites:** Pin your most-used apps to the top for even quicker access and re-order them with drag and drop.
 *   **Quick Search:** Instantly find the app you're looking for.
 *   **Looks Great:** A clean, modern design that even includes a dark mode.
 
@@ -42,12 +42,12 @@ First, you need to save the server code.
 2.  Copy all the code from the `local_server.py` file in this project.
 3.  Paste it into your text editor and save the file as `local_server.py` in a folder you can easily find, like your Desktop.
 
-#### 2. Choose Your Apps (Optional)
+#### 2. Choose Your Apps (Optional but Recommended!)
 
 You can decide which apps appear in the remote.
 
-1.  Open the `local_server.py` file you saved earlier with a text editor.
-2.  Find the `APPS` section. You can change the list to whatever you want!
+1.  Open the `local_server.py` file you just saved with a text editor.
+2.  Find the section labeled `--- 1. CONFIGURE YOUR APPS HERE ---`. You can change the list to whatever you want!
     *   The **name in quotes** is what you'll see on your phone (e.g., `"Google Chrome"`).
     *   The **command** is what your computer uses to open the program.
 
@@ -92,7 +92,8 @@ Now you'll connect your phone to your computer.
     *   In the project folder on your computer, open a new terminal and run `npm install` (you only need to do this once), then run `npm run dev`. This starts the web server.
 
 2.  **Find your Computer's IP address**
-    *   When you ran `python local_server.py`, it printed the IP address. Look for the line: `Server running at: http://<YOUR_PC_IP>:8000`. It will look something like `http://192.168.1.12:8000`.
+    *   When you ran `npm run dev`, your browser likely opened to a URL like `http://localhost:9002`.
+    *   To access this from your phone, you need your computer's **Local IP Address**. The Python script you ran earlier prints this out! Look for the line: `Server running at: http://<YOUR_PC_IP>:8000`. It will look something like `http://192.168.1.12:8000`.
 
 3.  **Open the App on your Phone**
     *   Open the web browser on your phone (like Chrome or Safari).
