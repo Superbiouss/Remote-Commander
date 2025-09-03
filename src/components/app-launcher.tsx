@@ -370,6 +370,11 @@ export default function AppLauncher() {
       } catch (error) {
         console.error('Error accessing camera:', error);
         setHasCameraPermission(false);
+        toast({
+          variant: 'destructive',
+          title: 'Camera Access Denied',
+          description: 'Please enable camera permissions in your browser settings to use this app.',
+        });
       }
     };
 
@@ -382,7 +387,7 @@ export default function AppLauncher() {
         }
     }
 
-  }, [isQRScannerOpen]);
+  }, [isQRScannerOpen, toast, videoRef]);
 
 
   return (
@@ -504,9 +509,14 @@ export default function AppLauncher() {
                         }}
                         onError={(error: any) => {
                             console.info('QR Scan Error:', error);
+                            // Only show a toast for critical errors, not for every failed scan attempt.
+                            if (error?.name === 'NotAllowedError') {
+                                setHasCameraPermission(false);
+                            }
                         }}
                         constraints={{ video: { facingMode: 'environment' } }}
                         style={{ width: '100%' }}
+                        videoRef={videoRef}
                     />
                 )}
               </div>
