@@ -6,12 +6,12 @@
 "use client";
 
 // React and Next.js hooks for state management, effects, and server action handling.
-import { useState, useEffect, useCallback, useMemo, useActionState } from 'react';
+import { useState, useEffect, useCallback, useMemo, useActionState, useRef } from 'react';
 import { useFormStatus } from 'react-dom';
 // Framer Motion for animations.
 import { motion, AnimatePresence } from 'framer-motion';
 // Icons from the lucide-react library.
-import { Search, Loader2, Settings, Save, Power, Plug, CheckCircle2, Pin, PinOff, GripVertical, WifiOff, Smartphone, QrCode, XCircle } from 'lucide-react';
+import { Search, Loader2, Settings, Save, Power, Plug, CheckCircle2, Pin, PinOff, GripVertical, WifiOff, Smartphone, QrCode, XCircle, Info, CameraOff } from 'lucide-react';
 // Drag and Drop library
 import { DragDropContext, Droppable, Draggable, type DropResult } from 'react-beautiful-dnd';
 // Custom hook for showing toast notifications.
@@ -24,6 +24,7 @@ import { ICONS, getIcon, type App as AppType } from '@/lib/mock-data';
 import { launchApp, FormState, getAppsFromPC, testConnection } from '@/app/actions';
 // UI components from the shadcn/ui library.
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -36,7 +37,8 @@ import {
   DialogTitle,
   DialogTrigger,
   DialogFooter,
-  DialogClose
+  DialogClose,
+  DialogDescription
 } from "@/components/ui/dialog";
 import { Label } from './ui/label';
 
@@ -166,6 +168,9 @@ export default function AppLauncher() {
   const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
   const [pinnedApps, setPinnedApps] = useState<string[]>([]);
   const [openGroups, setOpenGroups] = useState<string[]>([]);
+  const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
   
   const { toast } = useToast();
 
@@ -352,6 +357,33 @@ export default function AppLauncher() {
     return sortedAndFilteredApps;
   }, [searchQuery, sortedAndFilteredApps]);
 
+  useEffect(() => {
+    if (!isQRScannerOpen) return;
+
+    const getCameraPermission = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        setHasCameraPermission(true);
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+      } catch (error) {
+        console.error('Error accessing camera:', error);
+        setHasCameraPermission(false);
+      }
+    };
+
+    getCameraPermission();
+    
+    return () => {
+        if (videoRef.current && videoRef.current.srcObject) {
+            const stream = videoRef.current.srcObject as MediaStream;
+            stream.getTracks().forEach(track => track.stop());
+        }
+    }
+
+  }, [isQRScannerOpen]);
+
 
   return (
     <div className="container mx-auto flex max-w-4xl flex-col gap-4 px-4 py-4 sm:gap-8 sm:py-8">
@@ -375,6 +407,9 @@ export default function AppLauncher() {
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>{isConnected ? 'Connection Settings' : 'Connect to your PC'}</DialogTitle>
+                 <DialogDescription>
+                    Enter your PC's server address below or scan the QR code from the terminal.
+                </DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
                 <div className="grid w-full items-center gap-1.5">
@@ -389,23 +424,29 @@ export default function AppLauncher() {
                     className="w-full"
                   />
                 </div>
-                 <Card className="col-span-4 bg-muted/50">
-                    <CardHeader className="p-4">
-                      <CardTitle className="flex items-center gap-2 text-base font-semibold">
-                          <Smartphone /> Using a Hotspot?
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-4 pt-0 text-sm text-muted-foreground">
-                       <p>
-                        If you don't have Wi-Fi, you can use your phone's hotspot.
-                       </p>
-                       <ol className="list-decimal pl-5 mt-2 space-y-1">
-                          <li>Turn on your phone's hotspot and connect your laptop to it.</li>
-                          <li>Run the server on your laptop. It will show a new QR code.</li>
-                          <li>Scan that new QR code to connect.</li>
-                       </ol>
-                    </CardContent>
-                </Card>
+                 <Accordion type="single" collapsible className="w-full">
+                  <AccordionItem value="hotspot-info">
+                    <AccordionTrigger>
+                      <div className="flex items-center gap-2">
+                        <Smartphone /> Using a Hotspot?
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <Card className="col-span-4 bg-muted/50 border-none">
+                          <CardContent className="p-4 pt-4 text-sm text-muted-foreground">
+                            <p>
+                              If you don't have Wi-Fi, you can use your phone's hotspot.
+                            </p>
+                            <ol className="list-decimal pl-5 mt-2 space-y-1">
+                                <li>Turn on your phone's hotspot and connect your laptop to it.</li>
+                                <li>Run the server on your laptop. It will show a new QR code.</li>
+                                <li>Scan that new QR code to connect.</li>
+                            </ol>
+                          </CardContent>
+                      </Card>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
               </div>
               <DialogFooter className="grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:justify-between sm:w-full">
                  <div className="col-span-2 flex justify-start sm:col-auto">
@@ -433,31 +474,41 @@ export default function AppLauncher() {
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Scan QR Code</DialogTitle>
-                <CardDescription>Point your camera at the QR code displayed in your PC's terminal.</CardDescription>
+                <DialogDescription>Point your camera at the QR code displayed in your PC's terminal.</DialogDescription>
               </DialogHeader>
-              <div className="overflow-hidden rounded-lg">
-                <QrScanner
-                    onScan={(result: { text: string } | null) => {
-                        if (result && result.text) {
-                            const url = result.text;
-                             if (url.startsWith('http://') || url.startsWith('https://')) {
-                                saveUrl(url);
-                             } else {
-                                toast({
-                                    title: 'Invalid QR Code',
-                                    description: 'The scanned QR code does not contain a valid URL.',
-                                    variant: 'destructive',
-                                });
-                                setIsQRScannerOpen(false);
+                <div className="overflow-hidden rounded-lg aspect-square bg-muted flex items-center justify-center">
+                {hasCameraPermission === false ? (
+                    <Alert variant="destructive" className="w-auto">
+                        <CameraOff className="h-4 w-4" />
+                        <AlertTitle>Camera Access Denied</AlertTitle>
+                        <AlertDescription>
+                            Please grant camera permission in your browser settings to use the QR scanner.
+                        </AlertDescription>
+                    </Alert>
+                ) : (
+                    <QrScanner
+                        onScan={(result: { text: string } | null) => {
+                            if (result && result.text) {
+                                const url = result.text;
+                                if (url.startsWith('http://') || url.startsWith('https://')) {
+                                    saveUrl(url);
+                                } else {
+                                    toast({
+                                        title: 'Invalid QR Code',
+                                        description: 'The scanned QR code does not contain a valid URL.',
+                                        variant: 'destructive',
+                                    });
+                                    setIsQRScannerOpen(false);
+                                }
                             }
-                        }
-                    }}
-                    onError={(error: any) => {
-                        console.info('QR Scan Error:', error);
-                    }}
-                    constraints={{ video: { facingMode: 'environment' } }}
-                    style={{ width: '100%' }}
-                />
+                        }}
+                        onError={(error: any) => {
+                            console.info('QR Scan Error:', error);
+                        }}
+                        constraints={{ video: { facingMode: 'environment' } }}
+                        style={{ width: '100%' }}
+                    />
+                )}
               </div>
             </DialogContent>
           </Dialog>
@@ -583,9 +634,27 @@ export default function AppLauncher() {
             >
                 <Search className="h-16 w-16 text-muted-foreground/50" />
                 <h2 className="text-xl font-semibold">No Applications Found</h2>
-                <p className="text-muted-foreground">
-                    {isConnected ? `No applications configured on your PC.` : "Connect to your PC to see your applications."}
-                </p>
+                <div className="text-muted-foreground max-w-md">
+                    {isConnected ? (
+                        <>
+                        <p>No applications seem to be configured on your PC.</p>
+                        <Alert className="mt-4 text-left">
+                            <Info className="h-4 w-4" />
+                            <AlertTitle>How to Add Apps</AlertTitle>
+                            <AlertDescription>
+                                <ol className="list-decimal list-inside space-y-1 mt-2">
+                                    <li>Open the `local_server.py` file on your computer.</li>
+                                    <li>Find the `APPS =` section.</li>
+                                    <li>Uncomment or add the apps you want to use.</li>
+                                    <li>Save the file and restart the server.</li>
+                                </ol>
+                            </AlertDescription>
+                        </Alert>
+                        </>
+                    ) : (
+                        <p>Connect to your PC to see your applications.</p>
+                    )}
+                </div>
             </motion.div>
         )}
       </main>
