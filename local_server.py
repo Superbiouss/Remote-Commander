@@ -51,48 +51,64 @@ import netifaces
 # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
 #
 # Add the applications you want to launch from your phone.
-# You can group apps by categories. Apps without a group will appear under "General".
+# To add an app, simply REMOVE the '#' from the beginning of the line.
+# You can also add your own apps by following the same format.
 #
-# You can also specify an icon for each app. A list of available icons can be
-# found in the project's README file. If no icon is specified, one will be
-# chosen automatically.
+# A list of available icons can be found in the project's README file.
 #
-# --- EXAMPLES (edit or replace these with your own) ---
+# --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
 
-# Example for WINDOWS
+# --- Example for WINDOWS ---
 if platform.system() == "Windows":
     APPS = {
-        "Work": [
+        "Browsers": [
+            {"name": "Chrome", "command": "start chrome", "icon": "chrome"},
+            # {"name": "Firefox", "command": "start firefox", "icon": "firefox"}, # Uncomment this line to add Firefox
+            # {"name": "Edge", "command": "start msedge", "icon": "edge"}, # Uncomment this line to add Edge
+        ],
+        "Development": [
             {"name": "VS Code", "command": "code", "icon": "code"},
+            # {"name": "Command Prompt", "command": "start cmd", "icon": "terminal"},
+            # {"name": "PowerShell", "command": "start powershell", "icon": "terminal"},
+        ],
+        "Utilities": [
             {"name": "Notepad", "command": "notepad.exe", "icon": "fileText"},
-        ],
-        "Browser": [
-            {"name": "Google Chrome", "command": "start chrome", "icon": "chrome"},
-        ],
-        "General": [
-            {"name": "Calculator", "command": "calc.exe", "icon": "calculator"}
+            {"name": "Calculator", "command": "calc.exe", "icon": "calculator"},
+            # {"name": "File Explorer", "command": "explorer", "icon": "folder"},
+            # {"name": "Spotify", "command": "spotify", "icon": "music"},
+            # {"name": "Slack", "command": "slack", "icon": "slack"},
         ]
     }
-# Example for MACOS
+# --- Example for MACOS ---
 elif platform.system() == "Darwin":
      APPS = {
         "Work": [
             {"name": "VS Code", "command": "open -a 'Visual Studio Code'", "icon": "code"},
             {"name": "Terminal", "command": "open -a Terminal", "icon": "terminal"},
+            # {"name": "Slack", "command": "open -a Slack", "icon": "slack"},
+            # {"name": "Mail", "command": "open -a Mail", "icon": "mail"},
         ],
         "Browser": [
             {"name": "Google Chrome", "command": "open -a 'Google Chrome'", "icon": "chrome"},
+            # {"name": "Safari", "command": "open -a Safari", "icon": "safari"},
+            # {"name": "Firefox", "command": "open -a Firefox", "icon": "firefox"},
         ],
         "General": [
-            {"name": "Calculator", "command": "open -a Calculator", "icon": "calculator"}
+            {"name": "Calculator", "command": "open -a Calculator", "icon": "calculator"},
+            # {"name": "Spotify", "command": "open -a Spotify", "icon": "music"},
+            # {"name": "System Settings", "command": "open -a 'System Settings'", "icon": "settings"},
+            # {"name": "Finder", "command": "open .", "icon": "folder"},
         ]
     }
-# Example for LINUX
+# --- Example for LINUX ---
 else:
     APPS = {
         "General": [
-            {"name": "Text Editor", "command": "gedit", "icon": "fileText"},
-            {"name": "Terminal", "command": "gnome-terminal", "icon": "terminal"},
+            {"name": "Terminal", "command": "x-terminal-emulator", "icon": "terminal"},
+            # {"name": "Files", "command": "nautilus", "icon": "folder"},
+            # {"name": "Text Editor", "command": "gedit", "icon": "fileText"},
+            # {"name": "VS Code", "command": "code", "icon": "code"},
+            # {"name": "Firefox", "command": "firefox", "icon": "firefox"},
         ]
     }
 # --- END OF CONFIGURATION ---
