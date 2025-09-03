@@ -11,11 +11,13 @@ import { useFormStatus } from 'react-dom';
 // Framer Motion for animations.
 import { motion, AnimatePresence } from 'framer-motion';
 // Icons from the lucide-react library.
-import { Search, Loader2, Settings, Save, Power, Plug, CheckCircle2, Pin, PinOff, GripVertical, WifiOff, TestTube2, Smartphone } from 'lucide-react';
+import { Search, Loader2, Settings, Save, Power, Plug, CheckCircle2, Pin, PinOff, GripVertical, WifiOff, Smartphone, QrCode } from 'lucide-react';
 // Drag and Drop library
 import { DragDropContext, Droppable, Draggable, type DropResult } from 'react-beautiful-dnd';
 // Custom hook for showing toast notifications.
 import { useToast } from "@/hooks/use-toast";
+// QR Code reader
+import QrScanner from 'react-qr-scanner';
 // App data and icon mapping.
 import { ICONS, getIcon, type App as AppType } from '@/lib/mock-data';
 // Server actions imported from the actions file.
@@ -141,6 +143,7 @@ export default function AppLauncher() {
   const [localServerUrl, setLocalServerUrl] = useState('');
   const [tempServerUrl, setTempServerUrl] = useState('');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
   const [pinnedApps, setPinnedApps] = useState<string[]>([]);
   
   const { toast } = useToast();
@@ -212,6 +215,14 @@ export default function AppLauncher() {
     });
   }, [apps, pinnedApps, searchQuery]);
   
+  const saveUrl = (url: string) => {
+    localStorage.setItem('localServerUrl', url);
+    setLocalServerUrl(url);
+    setTempServerUrl(url);
+    toast({ title: 'Connected!', description: `Server URL set to ${url}` });
+    setIsSettingsOpen(false);
+    setIsQRScannerOpen(false);
+  }
 
   const handleSaveSettings = () => {
     if (!tempServerUrl) {
@@ -223,13 +234,7 @@ export default function AppLauncher() {
         const url = new URL(tempServerUrl.includes('://') ? tempServerUrl : `http://${tempServerUrl}`);
         if(!url.port) url.port = "8000";
         const formattedUrl = url.toString().replace(/\/$/, '');
-        
-        localStorage.setItem('localServerUrl', formattedUrl);
-        setLocalServerUrl(formattedUrl);
-        setTempServerUrl(formattedUrl);
-
-        toast({ title: 'Settings Saved', description: `Server URL set to ${formattedUrl}` });
-        setIsSettingsOpen(false);
+        saveUrl(formattedUrl);
     } catch(e) {
         toast({ title: 'Invalid URL', description: 'Please enter a valid URL (e.g., http://192.168.1.10:8000).', variant: 'destructive' });
     }
@@ -269,17 +274,10 @@ export default function AppLauncher() {
   const onDragEnd = (result: DropResult) => {
     const { destination, source, draggableId } = result;
     
-    // If dropped outside a droppable area, do nothing
-    if (!destination) {
+    if (!destination || (destination.droppableId === source.droppableId && destination.index === source.index)) {
       return;
     }
     
-    // If dropped in the same place, do nothing
-    if (destination.droppableId === source.droppableId && destination.index === source.index) {
-      return;
-    }
-    
-    // Reorder logic for pinned apps
     const newPinnedApps = Array.from(pinnedApps);
     newPinnedApps.splice(source.index, 1);
     newPinnedApps.splice(destination.index, 0, draggableId);
@@ -339,13 +337,13 @@ export default function AppLauncher() {
                        </p>
                        <ol className="list-decimal pl-5 mt-2 space-y-1">
                           <li>Turn on your phone's hotspot and connect your laptop to it.</li>
-                          <li>On your laptop, find its new IP address (e.g., `ipconfig` on Windows, `ifconfig` on macOS/Linux).</li>
-                          <li>Enter that IP address in the URL field above.</li>
+                          <li>Run the server on your laptop. It will show a new QR code.</li>
+                          <li>Scan that new QR code to connect.</li>
                        </ol>
                     </CardContent>
                 </Card>
               </div>
-              <DialogFooter className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
+              <DialogFooter className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-between sm:items-center">
                  <div className="flex justify-start gap-2">
                     {isConnected && (
                       <Button variant="destructive" onClick={handleDisconnect}>
@@ -353,8 +351,8 @@ export default function AppLauncher() {
                       </Button>
                     )}
                  </div>
-                 <div className="flex gap-2">
-                    <Button type="button" variant="outline" onClick={handleTestConnection}><TestTube2/> Test</Button>
+                 <div className="flex items-center gap-2">
+                    <Button type="button" variant="outline" onClick={() => setIsQRScannerOpen(true)}><QrCode/> Scan QR</Button>
                     <DialogClose asChild>
                       <Button type="button" variant="secondary">Close</Button>
                     </DialogClose>
@@ -365,6 +363,41 @@ export default function AppLauncher() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+
+          {/* QR Scanner Dialog */}
+          <Dialog open={isQRScannerOpen} onOpenChange={setIsQRScannerOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Scan QR Code</DialogTitle>
+                <CardDescription>Point your camera at the QR code displayed in your PC's terminal.</CardDescription>
+              </DialogHeader>
+              <div className="overflow-hidden rounded-lg">
+                <QrScanner
+                    onScan={(result: any) => {
+                        if (result) {
+                            const url = result?.text;
+                             if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
+                                saveUrl(url);
+                             } else {
+                                toast({
+                                    title: 'Invalid QR Code',
+                                    description: 'The scanned QR code does not contain a valid URL.',
+                                    variant: 'destructive',
+                                });
+                                setIsQRScannerOpen(false);
+                            }
+                        }
+                    }}
+                    onError={(error: any) => {
+                        console.info(error);
+                    }}
+                    constraints={{ video: { facingMode: 'environment' } }}
+                    style={{ width: '100%' }}
+                />
+              </div>
+            </DialogContent>
+          </Dialog>
+
           <ThemeToggle />
         </div>
       </header>
@@ -379,7 +412,7 @@ export default function AppLauncher() {
             </CardHeader>
             <CardContent>
                 <p className="text-destructive-foreground/80">
-                    To launch apps, click the "Connect" button and enter your computer's server URL. You can use your home Wi-Fi or your phone's hotspot.
+                    To launch apps, click the "Connect" button and scan the QR code from your computer's terminal.
                 </p>
             </CardContent>
          </Card>

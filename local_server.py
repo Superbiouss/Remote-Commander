@@ -10,6 +10,9 @@ import json
 import os
 import platform
 import subprocess
+import socket
+import qrcode
+import netifaces
 
 # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
 # --- CONFIGURE YOUR APPS HERE ---
@@ -19,29 +22,6 @@ import subprocess
 #
 # The KEY is the name that will appear in the web app (e.g., "Google Chrome").
 # The VALUE is the command to run the application from your terminal.
-#
-# --- Examples for macOS ---
-# APPS = {
-#     "Google Chrome": "open -a 'Google Chrome'",
-#     "Visual Studio Code": "open -a 'Visual Studio Code'",
-#     "Spotify": "open -a Spotify",
-#     "Terminal": "open -a Terminal",
-# }
-#
-# --- Examples for Windows ---
-# APPS = {
-#     "Google Chrome": "start chrome",
-#     "VS Code": "code",
-#     "Notepad": "notepad.exe",
-#     "Task Manager": "taskmgr",
-# }
-#
-# --- Examples for Linux ---
-# APPS = {
-#     "Firefox": "firefox",
-#     "Terminal": "gnome-terminal", # or 'konsole', 'xterm', etc.
-#     "Files": "nautilus",
-# }
 
 # --- DEFAULT CONFIGURATION (edit this) ---
 if platform.system() == "Windows":
@@ -62,7 +42,6 @@ else: # Linux and others
         "Terminal": "gnome-terminal", # Or 'konsole', 'xterm'
     }
 # --- END OF CONFIGURATION ---
-
 
 PORT = 8000
 
@@ -99,7 +78,6 @@ class MyHttpRequestHandler(http.server.SimpleHTTPRequestHandler):
                 command = APPS[app_to_launch]
                 print(f"Executing command: {command}")
                 
-                # Use subprocess.Popen for non-blocking command execution
                 subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
                 
                 self.send_response(200)
@@ -125,13 +103,62 @@ class MyHttpRequestHandler(http.server.SimpleHTTPRequestHandler):
             response = {"success": False, "message": f"Server error: {e}"}
             self.wfile.write(json.dumps(response).encode('utf-8'))
 
+def get_local_ip():
+    try:
+        # Get a list of all network interfaces
+        interfaces = netifaces.interfaces()
+        for interface in interfaces:
+            # Skip loopback and other non-relevant interfaces
+            if interface.startswith('lo') or 'Loopback' in interface:
+                continue
+            
+            addrs = netifaces.ifaddresses(interface)
+            # Look for IPv4 addresses
+            if netifaces.AF_INET in addrs:
+                ip_info = addrs[netifaces.AF_INET][0]
+                ip_address = ip_info.get('addr')
+                # A simple check to filter out non-local IPs, might need adjustment
+                if ip_address and not ip_address.startswith('127.'):
+                    return ip_address
+    except Exception as e:
+        print(f"Could not automatically find IP address: {e}")
+
+    # Fallback method if netifaces fails
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        return "127.0.0.1"
+
 
 Handler = MyHttpRequestHandler
+local_ip = get_local_ip()
+server_url = f"http://{local_ip}:{PORT}"
 
 with socketserver.TCPServer(("", PORT), Handler) as httpd:
-    print(f"Server running on http://0.0.0.0:{PORT}")
-    print("This server listens for commands from the Remote Commander web app.")
-    print("Make sure your phone and this PC are on the same network.")
+    print("\n" + "="*50)
+    print("      REMOTE COMMANDER SERVER      ")
+    print("="*50)
+    print(f"\nServer running at: {server_url}")
+    print("Scan the QR code below with the Remote Commander app on your phone.")
+    
+    # Generate and print QR code to the terminal
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_L,
+        box_size=10,
+        border=4,
+    )
+    qr.add_data(server_url)
+    qr.make(fit=True)
+    
+    print("\n")
+    qr.print_tty()
+    print("\n" + "="*50)
+
     print("\nConfigured Apps:")
     for app_name in APPS:
         print(f"- {app_name}")
