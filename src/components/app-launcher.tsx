@@ -118,13 +118,13 @@ function LaunchButton({ icon: Icon, appName }: { icon: React.ElementType, appNam
           disabled={pending}
           aria-disabled={pending}
         >
-          <CardContent className="flex h-full w-full flex-col items-center justify-center gap-4 p-6">
+          <CardContent className="flex h-full w-full flex-col items-center justify-center gap-2 p-4 sm:gap-4 sm:p-6">
             {pending ? (
-              <Loader2 className="h-10 w-10 animate-spin text-primary" />
+              <Loader2 className="h-8 w-8 animate-spin text-primary sm:h-10 sm:w-10" />
             ) : (
-              <Icon className="h-10 w-10 text-primary" />
+              <Icon className="h-8 w-8 text-primary sm:h-10 sm:w-10" />
             )}
-            <span className="text-center font-medium text-card-foreground">
+            <span className="text-center text-xs font-medium text-card-foreground sm:text-sm">
               {appName}
             </span>
           </CardContent>
@@ -290,12 +290,12 @@ export default function AppLauncher() {
   const isConnected = useMemo(() => !!localServerUrl, [localServerUrl]);
 
   return (
-    <div className="container mx-auto flex max-w-4xl flex-col gap-8 px-4 py-8">
+    <div className="container mx-auto flex max-w-4xl flex-col gap-4 px-4 py-4 sm:gap-8 sm:py-8">
       {/* Header Section */}
       <header className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-            <Power className="h-8 w-8 text-primary" />
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">
+        <div className="flex items-center gap-2 sm:gap-3">
+            <Power className="h-6 w-6 text-primary sm:h-8 sm:w-8" />
+            <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
             Remote Commander
             </h1>
         </div>
@@ -343,20 +343,20 @@ export default function AppLauncher() {
                     </CardContent>
                 </Card>
               </div>
-              <DialogFooter className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-between sm:items-center">
-                 <div className="flex justify-start gap-2">
+              <DialogFooter className="grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:justify-between">
+                 <div className="col-span-2 flex justify-start sm:col-auto">
                     {isConnected && (
-                      <Button variant="destructive" onClick={handleDisconnect}>
+                      <Button variant="destructive" onClick={handleDisconnect} className="w-full sm:w-auto">
                         <WifiOff /> Disconnect
                       </Button>
                     )}
                  </div>
-                 <div className="flex items-center gap-2">
-                    <Button type="button" variant="outline" onClick={() => setIsQRScannerOpen(true)}><QrCode/> Scan QR</Button>
-                    <DialogClose asChild>
+                 <div className="col-span-2 grid grid-cols-3 gap-2 sm:flex sm:items-center">
+                    <Button type="button" variant="outline" onClick={() => setIsQRScannerOpen(true)} className="col-span-1"><QrCode/></Button>
+                    <DialogClose asChild className="col-span-1">
                       <Button type="button" variant="secondary">Close</Button>
                     </DialogClose>
-                    <Button onClick={handleSaveSettings}>
+                    <Button onClick={handleSaveSettings} className="col-span-1">
                       <Save /> Save
                     </Button>
                  </div>
@@ -405,12 +405,12 @@ export default function AppLauncher() {
       {/* "Not Connected" Warning Card */}
       {!isConnected && (
          <Card className="border-destructive bg-destructive/10">
-            <CardHeader>
+            <CardHeader className="p-4 sm:p-6">
                 <CardTitle className="flex items-center gap-2 text-destructive">
                     <Settings/> Not Connected to Your PC
                 </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
                 <p className="text-destructive-foreground/80">
                     To launch apps, click the "Connect" button and scan the QR code from your computer's terminal.
                 </p>
@@ -420,11 +420,11 @@ export default function AppLauncher() {
 
       {/* Search Bar */}
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground sm:h-5 sm:w-5" />
         <Input
           type="search"
           placeholder="Search for an app..."
-          className="w-full rounded-full bg-background/50 py-6 pl-12 pr-12"
+          className="w-full rounded-full bg-background/50 py-5 pl-10 pr-10 sm:py-6 sm:pl-12 sm:pr-12"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
@@ -433,7 +433,7 @@ export default function AppLauncher() {
       {/* Main Content Area (App Grid or Loading/Empty State) */}
       <main>
         {isLoading ? (
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
             {Array.from({ length: 10 }).map((_, i) => (
               <Skeleton key={i} className="aspect-square w-full rounded-xl" />
             ))}
@@ -442,13 +442,13 @@ export default function AppLauncher() {
           <AnimatePresence>
             {sortedAndFilteredApps.length > 0 ? (
               <DragDropContext onDragEnd={onDragEnd}>
-                <Droppable droppableId="app-grid" direction="horizontal">
+                <Droppable droppableId="app-grid">
                   {(provided) => (
                     <motion.div
                       ref={provided.innerRef}
                       {...provided.droppableProps}
                       layout
-                      className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5"
+                      className="grid grid-cols-2 gap-4 landscape:grid-cols-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
                     >
                       {sortedAndFilteredApps.map((app, index) => (
                         <AppCard 
