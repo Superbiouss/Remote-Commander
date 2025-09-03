@@ -437,10 +437,10 @@ export default function AppLauncher() {
               </DialogHeader>
               <div className="overflow-hidden rounded-lg">
                 <QrScanner
-                    onScan={(result: any) => {
-                        if (result) {
-                            const url = result?.text;
-                             if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
+                    onScan={(result: { text: string } | null) => {
+                        if (result && result.text) {
+                            const url = result.text;
+                             if (url.startsWith('http://') || url.startsWith('https://')) {
                                 saveUrl(url);
                              } else {
                                 toast({
@@ -453,7 +453,7 @@ export default function AppLauncher() {
                         }
                     }}
                     onError={(error: any) => {
-                        console.info(error);
+                        console.info('QR Scan Error:', error);
                     }}
                     constraints={{ video: { facingMode: 'environment' } }}
                     style={{ width: '100%' }}
@@ -513,14 +513,14 @@ export default function AppLauncher() {
             // Search results view
             <AnimatePresence>
                 <motion.div layout className="grid grid-cols-2 gap-4 landscape:grid-cols-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-                    {searchResults.map((app, index) => (
+                    {searchResults.map((app) => (
                     <AppCard 
                         key={app.name} 
                         app={app} 
                         localServerUrl={localServerUrl} 
                         isPinned={pinnedApps.includes(app.name)} 
                         onPinToggle={togglePin}
-                        index={index}
+                        index={0}
                     />
                     ))}
                 </motion.div>
