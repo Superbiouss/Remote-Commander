@@ -4,28 +4,26 @@ Turn your phone into a remote control for your computer! Remote Commander lets y
 
 ![Remote Commander Screenshot](https://storage.googleapis.com/static.aifire.dev/remote-commander-screenshot.png)
 
-## What Can It Do?
+## Core Features
 
-*   **Launch Apps Instantly:** Start any program on your computer from your phone's web browser.
-*   **Super Simple Connection:** Just scan a QR code from your computer screen to connect your phone. No typing IP addresses!
-*   **Works with Wi-Fi or Hotspot:** Use your home Wi-Fi or your phone's personal hotspot to connect.
-*   **Organize Your Favorites:** Pin your most-used apps to the top for even quicker access.
-*   **Drag-and-Drop Reordering:** Easily reorder your pinned apps exactly how you want them.
-*   **App Groups:** Organize your applications into collapsible categories like "Work," "Gaming," or "Utilities."
-*   **Custom Icons:** Choose a specific icon for each app to personalize your remote.
-*   **Quick Search:** Instantly find the app you're looking for.
-*   **Looks Great:** A clean, modern design that even includes a dark mode.
+*   **Instant App Launch:** Start any program on your computer from your phone's web browser.
+*   **Seamless QR Code Connection:** Simply scan a QR code from your computer screen to connect your phone. No more typing IP addresses!
+*   **Works on Any Local Network:** Use your home Wi-Fi or your phone's personal hotspot to connect.
+*   **App Pinning & Reordering:** Pin your most-used apps to the top for quick access and reorder them with drag-and-drop.
+*   **Customizable App Groups:** Organize your applications into collapsible categories like "Work," "Gaming," or "Utilities."
+*   **Quick Search:** Instantly find the app you're looking for with a dynamic search bar.
+*   **Modern, Responsive UI:** A clean interface that works beautifully in both portrait and landscape mode, with a dark mode option.
 
 ---
 
-## How It Works (In Simple Terms)
+## How It Works
 
 For this to work, two pieces of software talk to each other over your local network:
 
-1.  **A Web App:** This is the interface you see and use on your phone's browser.
-2.  **A PC Server:** This is a small helper program that runs on your computer. It listens for the "launch" signal from your phone.
+1.  **The Web App:** This is the interface you see and use on your phone's browser, built with Next.js and React.
+2.  **The Local Server:** This is a small Python helper program that runs on your computer. It listens for the "launch" signal from your phone and executes the commands.
 
-As long as your phone and computer are on the same Wi-Fi network (or your computer is connected to your phone's hotspot), they can communicate.
+As long as your phone and computer are on the same Wi-Fi network (or your computer is connected to your phone's hotspot), they can communicate seamlessly.
 
 ---
 
@@ -45,7 +43,7 @@ First, you need to save the server code.
 2.  Copy all the code from the `local_server.py` file in this project.
 3.  Paste it into your text editor and save the file as `local_server.py` in a folder you can easily find, like your Desktop.
 
-#### 2. Choose Your Apps (Optional but Recommended!)
+#### 2. Configure Your Apps (Optional but Recommended!)
 
 You can decide which apps appear in the remote.
 
@@ -56,7 +54,7 @@ You can decide which apps appear in the remote.
     *   The **`command`** is what your computer uses to open the program.
     *   The **`icon`** is the picture for the app (see the list of available icons below).
 
-    *Example for Windows:*
+    **Example for Windows:**
     ```python
     APPS = {
         "Work": [
@@ -69,7 +67,7 @@ You can decide which apps appear in the remote.
     }
     ```
 
-    *Example for macOS:*
+    **Example for macOS:**
     ```python
     APPS = {
         "Work": [
@@ -94,19 +92,21 @@ Now it's time to start the server!
     ```bash
     python local_server.py
     ```
-4.  The first time you run this, it will automatically download and install the tools it needs.
-5.  Success! Your terminal will now show a big **QR code**. Keep this window open.
+4.  The first time you run this, it will automatically download and install the required libraries (`qrcode`, `Pillow`, and `netifaces`).
+5.  **Success!** Your terminal will now show a big **QR code**. Keep this window open.
 
 ### Part 2: On Your Phone
 
 Now you'll connect your phone to your computer.
 
-1.  **Start the Web App:**
-    *   In the project folder on your computer, open a new terminal and run `npm install` (you only need to do this once), then run `npm run dev`. This starts the web server.
+1.  **Start the Web App Server:**
+    *   In the project folder on your computer, open a **new** terminal.
+    *   Run `npm install` to install the web app dependencies (you only need to do this once).
+    *   Run `npm run dev`. This starts the web server.
 
-2.  **Find your Computer's IP address**
-    *   When you ran `npm run dev`, your browser likely opened to a URL like `http://localhost:9002`.
-    *   To access this from your phone, you need your computer's **Local IP Address**. The Python script you ran earlier prints this out! Look for the line: `Server running at: http://<YOUR_PC_IP>:8000`. It will look something like `http://192.168.1.12:8000`.
+2.  **Find your Computer's IP Address**
+    *   When you ran `npm run dev`, it probably printed a "Network" URL like `http://<YOUR_PC_IP>:9002`. This is the address you need.
+    *   Alternatively, the Python script you ran earlier also prints this out. Look for the line: `Server running at: http://<YOUR_PC_IP>:8000`.
 
 3.  **Open the App on your Phone**
     *   Open the web browser on your phone (like Chrome or Safari).
@@ -116,15 +116,13 @@ Now you'll connect your phone to your computer.
 4.  **Scan the QR Code:**
     *   When the app loads, tap the **"Connect"** button, then **"Scan QR Code"**.
     *   Point your phone's camera at the QR code in your computer's terminal.
-    *   It will connect instantly!
-
-You are now ready to launch apps from your phone!
+    *   It will connect instantly! You are now ready to launch apps from your phone.
 
 ---
 
-### No Wi-Fi? Use a Phone Hotspot!
+### Using a Phone Hotspot
 
-If you're out and about, you can use your phone's hotspot instead of Wi-Fi.
+If you don't have Wi-Fi, you can use your phone's personal hotspot instead.
 
 1.  **Enable Hotspot:** Turn on the personal hotspot on your phone.
 2.  **Connect Laptop:** Connect your computer to your phone's hotspot network.
@@ -135,7 +133,7 @@ If you're out and about, you can use your phone's hotspot instead of Wi-Fi.
 
 ### Available Icons
 
-When configuring your apps in `local_server.py`, you can use any of the following values for the `icon` field:
+When configuring your apps in `local_server.py`, you can use any of the following values for the `icon` field. If you don't specify one, an icon will be picked automatically.
 
 - `code`
 - `terminal`
